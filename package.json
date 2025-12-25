@@ -1,0 +1,32 @@
+{
+  "name": "lynxscreen",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist-electron/index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qzhao19/LynxScreen.git"
+  },
+  "author": "qzhao19",
+  "license": "MIT",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/qzhao19/LynxScreen/issues"
+  },
+  "homepage": "https://github.com/qzhao19/LynxScreen#readme",
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "@types/node": "^25.0.3",
+    "electron": "^39.2.7",
+    "svelte": "^5.46.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6"
+  }
+}
