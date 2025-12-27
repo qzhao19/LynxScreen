@@ -37,3 +37,19 @@ export interface UrlData {
  */
 export type ConnectionState = RTCIceConnectionState
 
+/**
+ * Enum defining the names of WebRTC data channels used for screen sharing communication.
+ * 
+ * These channels are used to transmit different types of data between the screen sharer
+ * and screen watcher peers in real-time.
+ * 
+ * @enum {string}
+ * @property {string} CURSOR_POSITIONS - Data channel for transmitting remote cursor position updates.
+ *                                        Used to sync the cursor coordinates of the other peer.
+ * @property {string} CURSOR_PING - Data channel for sending cursor ping/heartbeat messages.
+ *                                   Used to keep the cursor connection alive or detect disconnections.
+ */
+export enum DataChannelName {
+  CURSOR_POSITIONS = 'remoteCursorPositions',
+  CURSOR_PING = 'remoteCursorPing'
+}
