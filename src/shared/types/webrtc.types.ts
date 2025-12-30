@@ -33,9 +33,9 @@ export interface UrlData {
 
 /**
  * Type alias representing the connection state of a WebRTC ICE (Interactive Connectivity Establishment) connection.
- * @typedef {RTCIceConnectionState} ConnectionState
+ * @typedef {RTCIceConnectionState} WebRTCConnectionState
  */
-export type ConnectionState = RTCIceConnectionState
+export type WebRTCConnectionState = RTCIceConnectionState
 
 /**
  * Enum defining the names of WebRTC data channels used for screen sharing communication.
