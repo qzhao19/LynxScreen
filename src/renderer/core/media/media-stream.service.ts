@@ -1,4 +1,4 @@
-import log from "electron-log"
+import log from "electron-log";
 
 /**
  * Service for managing media streams (audio and display/screen capture).
@@ -16,15 +16,15 @@ export class MediaStreamService {
    * Stop any existing audio stram
    */
   private stopTracks(stream: MediaStream | null): void {
-    if (!stream) return ;
+    if (!stream) return;
     
     // If stop the current display stream, remove listener
     if (stream === this.displayStream && this.displayEndHandler) {
-      stream.removeEventListener("inactive", this.displayEndHandler)
+      stream.removeEventListener("inactive", this.displayEndHandler);
       stream.getTracks().forEach(track => {
-        track.removeEventListener("ended", this.displayEndHandler!)
-      })
-      this.displayEndHandler = undefined
+        track.removeEventListener("ended", this.displayEndHandler!);
+      });
+      this.displayEndHandler = undefined;
     }
 
     stream.getTracks().forEach(track => {
@@ -55,7 +55,7 @@ export class MediaStreamService {
       });
       return this.audioStream;
     } catch (error) {
-      log.error('Failed to get user audio:', error)
+      log.error('Failed to get user audio:', error);
       this.audioStream = null;
       return null;
     }
@@ -71,25 +71,25 @@ export class MediaStreamService {
       this.displayStream = await navigator.mediaDevices.getDisplayMedia({
         audio: false,
         video: true,
-      })
+      });
 
       // Use the arrow function to handle stream end
       this.displayEndHandler = () => {
         if (this.displayStream) {
-          this.stopTracks(this.displayStream)
-          this.displayStream = null
+          this.stopTracks(this.displayStream);
+          this.displayStream = null;
         }
-      }
+      };
 
       // When user stops sharing, clear the stored stream
       this.displayStream.addEventListener("inactive", this.displayEndHandler);
       this.displayStream.getTracks().forEach(track => { 
-        track.addEventListener("ended", this.displayEndHandler!) 
+        track.addEventListener("ended", this.displayEndHandler!); 
       });
 
       return this.displayStream;
     } catch (error) {
-      log.error('Failed to get display media:', error)
+      log.error('Failed to get display media:', error);
       this.displayStream = null;
       return null;
     }
@@ -127,7 +127,7 @@ export class MediaStreamService {
       this.displayStream &&
       this.displayStream.active &&
       this.displayStream.getTracks().some(t => t.enabled && t.readyState === 'live')
-    )
+    );
   }
 
   /**
@@ -135,7 +135,7 @@ export class MediaStreamService {
    * @param enabled - True to enable, false to disable audio tracks.
    */
   public toggleAudioTrack(enabled: boolean): void {
-    if (!this.audioStream) return ;
+    if (!this.audioStream) return;
     this.audioStream.getAudioTracks().forEach(track => {
       track.enabled = enabled;
     });
@@ -146,10 +146,10 @@ export class MediaStreamService {
    * @param enabled - True to enable, false to disable video tracks.
    */
   public toggleVideoTrack(enabled: boolean): void {
-    if (!this.displayStream) return ;
+    if (!this.displayStream) return;
     this.displayStream.getVideoTracks().forEach(track => {
       track.enabled = enabled;
-    })
+    });
   }
 
   /**
@@ -166,7 +166,7 @@ export class MediaStreamService {
    * @returns True if any video track is enabled, false otherwise.
    */
   public isVideoTrackActive(): boolean {
-    if (!this.displayStream) return false
+    if (!this.displayStream) return false;
     return this.displayStream.getVideoTracks().some(track => track.enabled);
   }
 
@@ -174,10 +174,10 @@ export class MediaStreamService {
    * Stops all media tracks and clears the streams.
    */
   public stopAllTracks(): void {
-    this.stopTracks(this.audioStream)
-    this.stopTracks(this.displayStream)
-    this.audioStream = null
-    this.displayStream = null
+    this.stopTracks(this.audioStream);
+    this.stopTracks(this.displayStream);
+    this.audioStream = null;
+    this.displayStream = null;
   }
 
   /**
