@@ -97,6 +97,7 @@ export class WebRTCConnectionService {
    * @returns Promise that resolves when gathering is complete.
    */
   private waitForIceGathering(timeout: number = 5000): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     return new Promise((resolve, reject) => {
       if (!this.pc) {
         // If connection is closed, directly return 
@@ -110,13 +111,6 @@ export class WebRTCConnectionService {
         return;
       }
 
-      let timeoutId: ReturnType<typeof setTimeout>;
-
-      const cleanup = (): void => {
-        clearTimeout(timeoutId);
-       this.pc?.removeEventListener("icegatheringstatechange", checkComplete);
-      };
-
       const checkComplete = (): void => {
         if (!this.pc || this.pc.iceGatheringState === "complete") {
           cleanup();
@@ -124,8 +118,13 @@ export class WebRTCConnectionService {
         }
       };
 
-      timeoutId = setTimeout(() => {
-        cleanup(); 
+      const cleanup = (): void => {
+        clearTimeout(timeoutId);
+        this.pc?.removeEventListener("icegatheringstatechange", checkComplete);
+      };
+
+      const timeoutId = setTimeout(() => {
+        cleanup();
         log.warn("ICE gathering timed out, proceeding with available candidates");
         resolve();
       }, timeout);
