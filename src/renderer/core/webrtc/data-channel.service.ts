@@ -1,5 +1,5 @@
-import log from "electron-log"
-import { RemoteCursorState, DataChannelName } from "../../../shared/types/index"
+import log from "electron-log";
+import { RemoteCursorState, DataChannelName } from "../../../shared/types/index";
 
 /**
  * Service for managing WebRTC data channels used for cursor synchronization.
@@ -13,8 +13,8 @@ export class DataChannelService {
 
   private onCursorUpdateCallback?: (data: RemoteCursorState) => void;
   private onCursorPingCallback?: (cursorId: string) => void;
-  private onChannelOpenCallback?: (channelName: string) => void
-  private onChannelCloseCallback?: (channelName: string) => void
+  private onChannelOpenCallback?: (channelName: string) => void;
+  private onChannelCloseCallback?: (channelName: string) => void;
 
   constructor(isScreenSharer: boolean = false) {
     this.isScreenSharer = isScreenSharer;
@@ -26,7 +26,7 @@ export class DataChannelService {
    * @returns True if channel exists and is open
    */
   private isChannelReady(channel: RTCDataChannel | null): boolean {
-    return channel !== null && channel.readyState === 'open'
+    return channel !== null && channel.readyState === 'open';
   }
 
   /**
@@ -35,25 +35,25 @@ export class DataChannelService {
    */
   private setupDataChannel(channel: RTCDataChannel): void {
     channel.onopen = () => {
-      log.info(`Data channel opened: ${channel.label}`)
-      this.onChannelOpenCallback?.(channel.label)
-    }
+      log.info(`Data channel opened: ${channel.label}`);
+      this.onChannelOpenCallback?.(channel.label);
+    };
 
     channel.onclose = () => {
-      log.info(`Data channel closed: ${channel.label}`)
-      this.onChannelCloseCallback?.(channel.label)
-    }
+      log.info(`Data channel closed: ${channel.label}`);
+      this.onChannelCloseCallback?.(channel.label);
+    };
 
     channel.onerror = (error) => {
-      log.error(`Data channel error (${channel.label}):`, error)
-    }
+      log.error(`Data channel error (${channel.label}):`, error);
+    };
 
     if (channel.label === DataChannelName.CURSOR_POSITIONS) {
       this.cursorPositionsChannel = channel;
       channel.onmessage = (msg: MessageEvent): void => {
-        if (!this.cursorsEnabled) return ;
+        if (!this.cursorsEnabled) return;
         // Server should receive, parse, and trigger a callback.
-        if (this.isScreenSharer) return ;
+        if (this.isScreenSharer) return;
         try {
           const data = JSON.parse(msg.data) as RemoteCursorState;
           this.onCursorUpdateCallback!(data);
@@ -66,8 +66,8 @@ export class DataChannelService {
     if (channel.label === DataChannelName.CURSOR_PING) {
       this.cursorPingChannel = channel;
       channel.onmessage = (msg: MessageEvent): void => {
-        if (!this.cursorsEnabled) return ;
-        if (!this.isScreenSharer) return ;
+        if (!this.cursorsEnabled) return;
+        if (!this.isScreenSharer) return;
         this.onCursorPingCallback?.(msg.data);
       };
     }
@@ -94,7 +94,7 @@ export class DataChannelService {
       channel.label === DataChannelName.CURSOR_POSITIONS ||
       channel.label === DataChannelName.CURSOR_PING
     ) {
-      this.setupDataChannel(channel)
+      this.setupDataChannel(channel);
     }
   }
 
@@ -103,7 +103,7 @@ export class DataChannelService {
    * @param callback - Function to call when cursor update is received
    */
   public onCursorUpdate(callback: (data: RemoteCursorState) => void): void {
-    this.onCursorUpdateCallback = callback
+    this.onCursorUpdateCallback = callback;
   }
 
   /**
@@ -111,7 +111,7 @@ export class DataChannelService {
    * @param callback - Function to call when cursor ping is received
    */
   public onCursorPing(callback: (cursorId: string) => void): void {
-    this.onCursorPingCallback = callback
+    this.onCursorPingCallback = callback;
   }
 
   /**
@@ -119,7 +119,7 @@ export class DataChannelService {
    * @param callback - Function to call when channel opens
    */
   public onChannelOpen(callback: (channelName: string) => void): void {
-    this.onChannelOpenCallback = callback
+    this.onChannelOpenCallback = callback;
   }
 
   /**
@@ -127,7 +127,7 @@ export class DataChannelService {
    * @param callback - Function to call when channel closes
    */
   public onChannelClose(callback: (channelName: string) => void): void {
-    this.onChannelCloseCallback = callback
+    this.onChannelCloseCallback = callback;
   }
 
   /**
@@ -137,16 +137,16 @@ export class DataChannelService {
    */
   public sendCursorUpdate(data: RemoteCursorState): boolean {
     if (!this.isChannelReady(this.cursorPositionsChannel)) {
-      log.error('Cursor positions channel not ready')
-      return false
+      log.error('Cursor positions channel not ready');
+      return false;
     }
 
     try {
-      this.cursorPositionsChannel!.send(JSON.stringify(data))
-      return true
+      this.cursorPositionsChannel!.send(JSON.stringify(data));
+      return true;
     } catch (error) {
-      log.error('Failed to send cursor update:', error)
-      return false
+      log.error('Failed to send cursor update:', error);
+      return false;
     }
   }
 
@@ -157,16 +157,16 @@ export class DataChannelService {
    */
   public sendCursorPing(cursorId: string): boolean {
     if (!this.isChannelReady(this.cursorPingChannel)) {
-      log.error('Cursor ping channel not ready')
-      return false
+      log.error('Cursor ping channel not ready');
+      return false;
     }
 
     try {
-      this.cursorPingChannel!.send(cursorId)
-      return true
+      this.cursorPingChannel!.send(cursorId);
+      return true;
     } catch (error) {
-      log.error('Failed to send cursor ping:', error)
-      return false
+      log.error('Failed to send cursor ping:', error);
+      return false;
     }
   }
 
@@ -177,39 +177,39 @@ export class DataChannelService {
    */
   public toggleCursors(enabled: boolean): boolean {
     if (!this.isChannelReady(this.cursorPositionsChannel)) {
-      return false
+      return false;
     }
 
-    this.cursorsEnabled = enabled
-    return enabled
+    this.cursorsEnabled = enabled;
+    return enabled;
   }
 
   /**
    * Checks if cursors are currently enabled.
    */
   public isCursorsEnabled(): boolean {
-    return this.cursorsEnabled
+    return this.cursorsEnabled;
   }
 
   /**
    * Checks if the cursor positions channel is ready.
    */
   public isCursorPositionsChannelReady(): boolean {
-    return this.isChannelReady(this.cursorPositionsChannel)
+    return this.isChannelReady(this.cursorPositionsChannel);
   }
 
   /**
    * Checks if the cursor ping channel is ready.
    */
   public isCursorPingChannelReady(): boolean {
-    return this.isChannelReady(this.cursorPingChannel)
+    return this.isChannelReady(this.cursorPingChannel);
   }
 
   /**
    * Checks if all channels are ready.
    */
   public areAllChannelsReady(): boolean {
-    return this.isCursorPositionsChannelReady() && this.isCursorPingChannelReady()
+    return this.isCursorPositionsChannelReady() && this.isCursorPingChannelReady();
   }
 
   /**
@@ -217,28 +217,28 @@ export class DataChannelService {
    */
   public cleanup(): void {
     if (this.cursorPositionsChannel) {
-      this.cursorPositionsChannel.onopen = null
-      this.cursorPositionsChannel.onclose = null
-      this.cursorPositionsChannel.onerror = null
-      this.cursorPositionsChannel.onmessage = null
-      this.cursorPositionsChannel.close()
-      this.cursorPositionsChannel = null
+      this.cursorPositionsChannel.onopen = null;
+      this.cursorPositionsChannel.onclose = null;
+      this.cursorPositionsChannel.onerror = null;
+      this.cursorPositionsChannel.onmessage = null;
+      this.cursorPositionsChannel.close();
+      this.cursorPositionsChannel = null;
     }
 
     if (this.cursorPingChannel) {
-      this.cursorPingChannel.onopen = null
-      this.cursorPingChannel.onclose = null
-      this.cursorPingChannel.onerror = null
-      this.cursorPingChannel.onmessage = null
-      this.cursorPingChannel.close()
-      this.cursorPingChannel = null
+      this.cursorPingChannel.onopen = null;
+      this.cursorPingChannel.onclose = null;
+      this.cursorPingChannel.onerror = null;
+      this.cursorPingChannel.onmessage = null;
+      this.cursorPingChannel.close();
+      this.cursorPingChannel = null;
     }
 
-    this.cursorsEnabled = false
-    this.onCursorUpdateCallback = undefined
-    this.onCursorPingCallback = undefined
-    this.onChannelOpenCallback = undefined
-    this.onChannelCloseCallback = undefined
+    this.cursorsEnabled = false;
+    this.onCursorUpdateCallback = undefined;
+    this.onCursorPingCallback = undefined;
+    this.onChannelOpenCallback = undefined;
+    this.onChannelCloseCallback = undefined;
   }
 
 }
