@@ -39,35 +39,3 @@ export interface AppSettings {
   iceServers: IceServerConfig[]
 }
 
-/**
- * Configuration object for initializing and managing the WebRTC service.
- * 
- * This interface encapsulates all necessary settings and references required to establish
- * and manage a peer-to-peer WebRTC connection for screen sharing.
- * 
- * @interface WebRTCServiceConfig
- * @property {AppSettings} settings - Application-wide settings used to initialize the WebRTC connection.
- * @property {boolean} isScreenSharer - Indicates the role of the local peer in the connection.
- *                                    - true: screen sharer (initiates the connection, sends screen)
- *                                    - false: screen watcher (receives the screen)
- *                          
- * @property {HTMLVideoElement | null} [remoteVideo] - Optional reference to the HTML video element where
- *                                                     the remote peer's video stream (screen capture) will be rendered.
- * 
- */
-export interface WebRTCServiceConfig {
-  settings: AppSettings
-  isScreenSharer: boolean
-  remoteVideo?: HTMLVideoElement | null
-}
-
-/**
- * Configuration for WebRTC peer connection.
- * 
- * @interface WebRTCConnectionConfig
- * @property {IceServerConfig[]} iceServers - Array of ICE server configurations
- *                                            for NAT traversal and connectivity.
- */
-export interface WebRTCConnectionConfig {
-  iceServers: IceServerConfig[]
-}
