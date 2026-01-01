@@ -12,7 +12,7 @@
  * @property {number} x - The X-coordinate (horizontal position) of the remote cursor on the screen.
  * @property {number} y - The Y-coordinate (vertical position) of the remote cursor on the screen.
  */
-export type RemoteCursorState = {
+export interface RemoteCursorState {
   id: string
   name: string
   color: string
