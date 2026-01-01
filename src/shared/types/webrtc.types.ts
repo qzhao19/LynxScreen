@@ -1,11 +1,13 @@
+import type { IceServerConfig } from "./settings.types";
+
 /**
  * Enum representing the role of a peer in the WebRTC connection.
  * - server: The peer that initiates the screen sharing
  * - client: The peer that receives the screen sharing
  */
-export enum ConnectionType {
-  "server",
-  "client"
+export enum PeerRole {
+  SCREEN_SHARER = "screenSharer",
+  SCREEN_WATCHER = "screenWatcher"
 }
 
 /**
@@ -26,30 +28,18 @@ export interface ConnectionData {
  *                                   for establishing the peer connection
  */
 export interface UrlData {
-  type: ConnectionType
+  role: PeerRole
   data: ConnectionData
   rtcSessionDescription: RTCSessionDescriptionInit
 }
 
 /**
- * Type alias representing the connection state of a WebRTC ICE (Interactive Connectivity Establishment) connection.
- * @typedef {RTCIceConnectionState} WebRTCConnectionState
- */
-export type WebRTCConnectionState = RTCIceConnectionState
-
-/**
- * Enum defining the names of WebRTC data channels used for screen sharing communication.
+ * Configuration for WebRTC peer connection.
  * 
- * These channels are used to transmit different types of data between the screen sharer
- * and screen watcher peers in real-time.
- * 
- * @enum {string}
- * @property {string} CURSOR_POSITIONS - Data channel for transmitting remote cursor position updates.
- *                                        Used to sync the cursor coordinates of the other peer.
- * @property {string} CURSOR_PING - Data channel for sending cursor ping/heartbeat messages.
- *                                   Used to keep the cursor connection alive or detect disconnections.
+ * @interface WebRTCConnectionConfig
+ * @property {IceServerConfig[]} iceServers - Array of ICE server configurations
+ *                                            for NAT traversal and connectivity.
  */
-export enum DataChannelName {
-  CURSOR_POSITIONS = 'remoteCursorPositions',
-  CURSOR_PING = 'remoteCursorPing'
+export interface WebRTCConnectionConfig {
+  iceServers: IceServerConfig[]
 }
