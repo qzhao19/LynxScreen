@@ -19,8 +19,8 @@ export type WebRTCConnectionState = RTCIceConnectionState
  *                                   Used to keep the cursor connection alive or detect disconnections.
  */
 export enum DataChannelName {
-  CURSOR_POSITIONS = 'remoteCursorPositions',
-  CURSOR_PING = 'remoteCursorPing'
+  CURSOR_POSITIONS = "remoteCursorPositions",
+  CURSOR_PING = "remoteCursorPing"
 }
 
 /**

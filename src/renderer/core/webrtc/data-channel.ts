@@ -27,7 +27,7 @@ export class DataChannelService {
    * @returns True if channel exists and is open
    */
   private isChannelReady(channel: RTCDataChannel | null): boolean {
-    return channel !== null && channel.readyState === 'open';
+    return channel !== null && channel.readyState === "open";
   }
 
   /**
@@ -138,7 +138,7 @@ export class DataChannelService {
    */
   public sendCursorUpdate(data: RemoteCursorState): boolean {
     if (!this.isChannelReady(this.cursorPositionsChannel)) {
-      log.error('Cursor positions channel not ready');
+      log.error("Cursor positions channel not ready");
       return false;
     }
 
@@ -146,7 +146,7 @@ export class DataChannelService {
       this.cursorPositionsChannel!.send(JSON.stringify(data));
       return true;
     } catch (error) {
-      log.error('Failed to send cursor update:', error);
+      log.error("Failed to send cursor update:", error);
       return false;
     }
   }
@@ -158,7 +158,7 @@ export class DataChannelService {
    */
   public sendCursorPing(cursorId: string): boolean {
     if (!this.isChannelReady(this.cursorPingChannel)) {
-      log.error('Cursor ping channel not ready');
+      log.error("Cursor ping channel not ready");
       return false;
     }
 
@@ -166,7 +166,7 @@ export class DataChannelService {
       this.cursorPingChannel!.send(cursorId);
       return true;
     } catch (error) {
-      log.error('Failed to send cursor ping:', error);
+      log.error("Failed to send cursor ping:", error);
       return false;
     }
   }

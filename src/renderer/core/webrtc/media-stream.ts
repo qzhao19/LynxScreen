@@ -55,7 +55,7 @@ export class MediaStreamService {
       });
       return this.audioStream;
     } catch (error) {
-      log.error('Failed to get user audio:', error);
+      log.error("Failed to get user audio:", error);
       this.audioStream = null;
       return null;
     }
@@ -89,7 +89,7 @@ export class MediaStreamService {
 
       return this.displayStream;
     } catch (error) {
-      log.error('Failed to get display media:', error);
+      log.error("Failed to get display media:", error);
       this.displayStream = null;
       return null;
     }
@@ -126,7 +126,7 @@ export class MediaStreamService {
     return !!(
       this.displayStream &&
       this.displayStream.active &&
-      this.displayStream.getTracks().some(t => t.enabled && t.readyState === 'live')
+      this.displayStream.getTracks().some(t => t.enabled && t.readyState === "live")
     );
   }
 

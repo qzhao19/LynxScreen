@@ -80,11 +80,11 @@ export class WebRTCService {
    * Creates an HTMLAudioElement for playing remote audio
    */
   private createAudioElement(): HTMLAudioElement {
-    const audio = document.createElement('audio');
+    const audio = document.createElement("audio");
     audio.autoplay = true;
     audio.controls = false;
     // Add to DOM to ensure audio playback
-    audio.style.display = 'none';
+    audio.style.display = "none";
     document.body.appendChild(audio);
     return audio;
   }
