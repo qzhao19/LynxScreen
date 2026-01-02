@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { MediaStreamService } from '../../src/renderer/core/index';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { MediaStreamService } from "../../src/renderer/core/index";
 
 // Mock electron-log
-vi.mock('electron-log', () => ({
+vi.mock("electron-log", () => ({
   default: {
     error: vi.fn(),
     warn: vi.fn(),
@@ -10,7 +10,7 @@ vi.mock('electron-log', () => ({
   }
 }));
 
-describe('MediaStreamService', () => {
+describe("MediaStreamService", () => {
   let service: MediaStreamService;
   let mockAudioTrack: MediaStreamTrack;
   let mockVideoTrack: MediaStreamTrack;
@@ -26,9 +26,9 @@ describe('MediaStreamService', () => {
 
     // Mock MediaStreamTrack
     mockAudioTrack = {
-      kind: 'audio',
+      kind: "audio",
       enabled: true,
-      readyState: 'live',
+      readyState: "live",
       stop: vi.fn(),
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -38,9 +38,9 @@ describe('MediaStreamService', () => {
     } as unknown as MediaStreamTrack;
 
     mockVideoTrack = {
-      kind: 'video',
+      kind: "video",
       enabled: true,
-      readyState: 'live',
+      readyState: "live",
       stop: vi.fn(),
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -76,7 +76,7 @@ describe('MediaStreamService', () => {
       getDisplayMedia: vi.fn()
     };
 
-    vi.stubGlobal('navigator', {
+    vi.stubGlobal("navigator", {
       mediaDevices: mockMediaDevices
     });
   });
@@ -86,8 +86,8 @@ describe('MediaStreamService', () => {
     vi.unstubAllGlobals();
   });
 
-  describe('getUserAudio', () => {
-    it('should successfully get audio stream', async () => {
+  describe("getUserAudio", () => {
+    it("should successfully get audio stream", async () => {
       mockMediaDevices.getUserMedia.mockResolvedValue(mockAudioStream);
 
       const result = await service.getUserAudio();
@@ -99,9 +99,9 @@ describe('MediaStreamService', () => {
       });
     });
 
-    it('should return null when user denies permission', async () => {
+    it("should return null when user denies permission", async () => {
       mockMediaDevices.getUserMedia.mockRejectedValue(
-        new Error('Permission denied')
+        new Error("Permission denied")
       );
 
       const result = await service.getUserAudio();
@@ -110,7 +110,7 @@ describe('MediaStreamService', () => {
       expect(service.getAudioStream()).toBeNull();
     });
 
-    it('should stop existing audio stream before getting new one', async () => {
+    it("should stop existing audio stream before getting new one", async () => {
       mockMediaDevices.getUserMedia.mockResolvedValue(mockAudioStream);
 
       await service.getUserAudio();
@@ -125,8 +125,8 @@ describe('MediaStreamService', () => {
     });
   });
 
-  describe('getDisplayMedia', () => {
-    it('should successfully get display stream', async () => {
+  describe("getDisplayMedia", () => {
+    it("should successfully get display stream", async () => {
       mockMediaDevices.getDisplayMedia.mockResolvedValue(mockDisplayStream);
 
       const result = await service.getDisplayMedia();
@@ -138,24 +138,24 @@ describe('MediaStreamService', () => {
       });
     });
 
-    it('should register event listeners for stream end', async () => {
+    it("should register event listeners for stream end", async () => {
       mockMediaDevices.getDisplayMedia.mockResolvedValue(mockDisplayStream);
 
       await service.getDisplayMedia();
 
       expect(mockDisplayStream.addEventListener).toHaveBeenCalledWith(
-        'inactive',
+        "inactive",
         expect.any(Function)
       );
       expect(mockVideoTrack.addEventListener).toHaveBeenCalledWith(
-        'ended',
+        "ended",
         expect.any(Function)
       );
     });
 
-    it('should return null when user cancels screen sharing', async () => {
+    it("should return null when user cancels screen sharing", async () => {
       mockMediaDevices.getDisplayMedia.mockRejectedValue(
-        new Error('User cancelled')
+        new Error("User cancelled")
       );
 
       const result = await service.getDisplayMedia();
@@ -164,7 +164,7 @@ describe('MediaStreamService', () => {
       expect(service.getDisplayStream()).toBeNull();
     });
 
-    it('should stop existing display stream before getting new one', async () => {
+    it("should stop existing display stream before getting new one", async () => {
       mockMediaDevices.getDisplayMedia.mockResolvedValue(mockDisplayStream);
 
       await service.getDisplayMedia();
@@ -179,12 +179,12 @@ describe('MediaStreamService', () => {
     });
   });
 
-  describe('hasAudioInput', () => {
-    it('should return false when no audio stream exists', () => {
+  describe("hasAudioInput", () => {
+    it("should return false when no audio stream exists", () => {
       expect(service.hasAudioInput()).toBe(false);
     });
 
-    it('should return true when audio stream exists', async () => {
+    it("should return true when audio stream exists", async () => {
       mockMediaDevices.getUserMedia.mockResolvedValue(mockAudioStream);
 
       await service.getUserAudio();
@@ -193,12 +193,12 @@ describe('MediaStreamService', () => {
     });
   });
 
-  describe('isDisplayActive', () => {
-    it('should return false when no display stream exists', () => {
+  describe("isDisplayActive", () => {
+    it("should return false when no display stream exists", () => {
       expect(service.isDisplayActive()).toBe(false);
     });
 
-    it('should return true when display stream is active', async () => {
+    it("should return true when display stream is active", async () => {
       mockMediaDevices.getDisplayMedia.mockResolvedValue(mockDisplayStream);
 
       await service.getDisplayMedia();
@@ -206,7 +206,7 @@ describe('MediaStreamService', () => {
       expect(service.isDisplayActive()).toBe(true);
     });
 
-    it('should return false when stream is inactive', async () => {
+    it("should return false when stream is inactive", async () => {
       const inactiveStream = {
         ...mockDisplayStream,
         active: false
@@ -219,8 +219,8 @@ describe('MediaStreamService', () => {
     });
   });
 
-  describe('toggleAudioTrack', () => {
-    it('should enable audio tracks', async () => {
+  describe("toggleAudioTrack", () => {
+    it("should enable audio tracks", async () => {
       mockMediaDevices.getUserMedia.mockResolvedValue(mockAudioStream);
       await service.getUserAudio();
 
@@ -229,7 +229,7 @@ describe('MediaStreamService', () => {
       expect(mockAudioTrack.enabled).toBe(true);
     });
 
-    it('should disable audio tracks', async () => {
+    it("should disable audio tracks", async () => {
       mockMediaDevices.getUserMedia.mockResolvedValue(mockAudioStream);
       await service.getUserAudio();
 
@@ -238,13 +238,13 @@ describe('MediaStreamService', () => {
       expect(mockAudioTrack.enabled).toBe(false);
     });
 
-    it('should do nothing when no audio stream exists', () => {
+    it("should do nothing when no audio stream exists", () => {
       expect(() => service.toggleAudioTrack(true)).not.toThrow();
     });
   });
 
-  describe('toggleVideoTrack', () => {
-    it('should enable video tracks', async () => {
+  describe("toggleVideoTrack", () => {
+    it("should enable video tracks", async () => {
       mockMediaDevices.getDisplayMedia.mockResolvedValue(mockDisplayStream);
       await service.getDisplayMedia();
 
@@ -253,7 +253,7 @@ describe('MediaStreamService', () => {
       expect(mockVideoTrack.enabled).toBe(true);
     });
 
-    it('should disable video tracks', async () => {
+    it("should disable video tracks", async () => {
       mockMediaDevices.getDisplayMedia.mockResolvedValue(mockDisplayStream);
       await service.getDisplayMedia();
 
@@ -262,24 +262,24 @@ describe('MediaStreamService', () => {
       expect(mockVideoTrack.enabled).toBe(false);
     });
 
-    it('should do nothing when no display stream exists', () => {
+    it("should do nothing when no display stream exists", () => {
       expect(() => service.toggleVideoTrack(true)).not.toThrow();
     });
   });
 
-  describe('isAudioTrackActive', () => {
-    it('should return false when no audio stream exists', () => {
+  describe("isAudioTrackActive", () => {
+    it("should return false when no audio stream exists", () => {
       expect(service.isAudioTrackActive()).toBe(false);
     });
 
-    it('should return true when audio track is enabled', async () => {
+    it("should return true when audio track is enabled", async () => {
       mockMediaDevices.getUserMedia.mockResolvedValue(mockAudioStream);
       await service.getUserAudio();
 
       expect(service.isAudioTrackActive()).toBe(true);
     });
 
-    it('should return false when audio track is disabled', async () => {
+    it("should return false when audio track is disabled", async () => {
       mockAudioTrack.enabled = false;
       mockMediaDevices.getUserMedia.mockResolvedValue(mockAudioStream);
       await service.getUserAudio();
@@ -288,19 +288,19 @@ describe('MediaStreamService', () => {
     });
   });
 
-  describe('isVideoTrackActive', () => {
-    it('should return false when no display stream exists', () => {
+  describe("isVideoTrackActive", () => {
+    it("should return false when no display stream exists", () => {
       expect(service.isVideoTrackActive()).toBe(false);
     });
 
-    it('should return true when video track is enabled', async () => {
+    it("should return true when video track is enabled", async () => {
       mockMediaDevices.getDisplayMedia.mockResolvedValue(mockDisplayStream);
       await service.getDisplayMedia();
 
       expect(service.isVideoTrackActive()).toBe(true);
     });
 
-    it('should return false when video track is disabled', async () => {
+    it("should return false when video track is disabled", async () => {
       mockVideoTrack.enabled = false;
       mockMediaDevices.getDisplayMedia.mockResolvedValue(mockDisplayStream);
       await service.getDisplayMedia();
@@ -309,8 +309,8 @@ describe('MediaStreamService', () => {
     });
   });
 
-  describe('stopAllTracks', () => {
-    it('should stop both audio and display streams', async () => {
+  describe("stopAllTracks", () => {
+    it("should stop both audio and display streams", async () => {
       mockMediaDevices.getUserMedia.mockResolvedValue(mockAudioStream);
       mockMediaDevices.getDisplayMedia.mockResolvedValue(mockDisplayStream);
 
@@ -325,13 +325,13 @@ describe('MediaStreamService', () => {
       expect(service.getDisplayStream()).toBeNull();
     });
 
-    it('should handle null streams gracefully', () => {
+    it("should handle null streams gracefully", () => {
       expect(() => service.stopAllTracks()).not.toThrow();
     });
   });
 
-  describe('cleanup', () => {
-    it('should call stopAllTracks', async () => {
+  describe("cleanup", () => {
+    it("should call stopAllTracks", async () => {
       mockMediaDevices.getUserMedia.mockResolvedValue(mockAudioStream);
       await service.getUserAudio();
 
@@ -342,24 +342,24 @@ describe('MediaStreamService', () => {
     });
   });
 
-  describe('memory leak prevention', () => {
-    it('should remove event listeners when stopping display stream', async () => {
+  describe("memory leak prevention", () => {
+    it("should remove event listeners when stopping display stream", async () => {
       mockMediaDevices.getDisplayMedia.mockResolvedValue(mockDisplayStream);
 
       await service.getDisplayMedia();
       service.stopAllTracks();
 
       expect(mockDisplayStream.removeEventListener).toHaveBeenCalledWith(
-        'inactive',
+        "inactive",
         expect.any(Function)
       );
       expect(mockVideoTrack.removeEventListener).toHaveBeenCalledWith(
-        'ended',
+        "ended",
         expect.any(Function)
       );
     });
 
-    it('should clear property listeners when stopping tracks', async () => {
+    it("should clear property listeners when stopping tracks", async () => {
       mockMediaDevices.getUserMedia.mockResolvedValue(mockAudioStream);
 
       await service.getUserAudio();
