@@ -17,6 +17,9 @@ describe("WebRTCConnectionService", () => {
   let mockDataChannelService: DataChannelService;
   let mockPeerConnection: RTCPeerConnection;
   let mockConfig: WebRTCConnectionConfig;
+  let eventListeners: Map<string, Set<(...args: any[]) => void>>;
+  let emitIceCandidate: () => void;
+  let emitIceGatheringComplete: () => void;
 
   const createMockRTCSessionDescription = (type: RTCSdpType): RTCSessionDescriptionInit => ({
     type,
@@ -24,6 +27,28 @@ describe("WebRTCConnectionService", () => {
   });
 
   beforeEach(() => {
+    // Event listeners map to track registered handlers
+    eventListeners = new Map<string, Set<(...args: any[]) => void>>();
+    
+    let iceGatheringStateValue: RTCIceGatheringState = "new";
+    let currentLocalDescription: RTCSessionDescriptionInit | null = createMockRTCSessionDescription("offer");
+    
+    // Helper functions to emit events
+    emitIceCandidate = () => {
+      eventListeners.get("icecandidate")?.forEach((listener) =>
+        listener({
+          candidate: { candidate: "a=candidate:1 1 UDP 2130706431 192.168.1.1 54321 typ host" }
+        } as RTCPeerConnectionIceEvent)
+      );
+    };
+
+    emitIceGatheringComplete = () => {
+      iceGatheringStateValue = "complete";      
+      eventListeners.get("icegatheringstatechange")?.forEach((listener) =>
+        listener(new Event("icegatheringstatechange"))
+      );
+    };
+
     // Mock DataChannelService
     mockDataChannelService = {
       createChannels: vi.fn(),
@@ -38,7 +63,6 @@ describe("WebRTCConnectionService", () => {
         { urls: "turn:turn.example.com", username: "user", credential: "pass" }
       ]
     };
-    let currentLocalDescription: RTCSessionDescriptionInit | null = createMockRTCSessionDescription("offer");
 
     // Mock RTCPeerConnection
     mockPeerConnection = {
@@ -46,17 +70,31 @@ describe("WebRTCConnectionService", () => {
       createAnswer: vi.fn().mockResolvedValue(createMockRTCSessionDescription("answer")),
       setLocalDescription: vi.fn().mockImplementation((desc: RTCSessionDescriptionInit) => {
         currentLocalDescription = desc;
+        // Simulate ICE gathering after setLocalDescription
+        setTimeout(() => {
+          emitIceCandidate();
+          emitIceGatheringComplete();
+        }, 0);
         return Promise.resolve();
       }),
       setRemoteDescription: vi.fn().mockResolvedValue(undefined),
       addTrack: vi.fn().mockReturnValue({} as RTCRtpSender),
       removeTrack: vi.fn(),
       close: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
+      // addEventListener: vi.fn(),
+      // removeEventListener: vi.fn(),
+      // iceGatheringState: "complete" as RTCIceGatheringState,
+      addEventListener: vi.fn((type: string, handler: (...args: any[]) => void) => {
+        if (!eventListeners.has(type)) {
+          eventListeners.set(type, new Set());
+        }
+        eventListeners.get(type)?.add(handler);
+      }),
+      removeEventListener: vi.fn((type: string, handler: (...args: any[]) => void) => {
+        eventListeners.get(type)?.delete(handler);
+      }),
       connectionState: "new" as RTCPeerConnectionState,
       iceConnectionState: "new" as RTCIceConnectionState,
-      iceGatheringState: "complete" as RTCIceGatheringState,
       ondatachannel: null,
       ontrack: null,
       onicecandidate: null,
@@ -68,6 +106,15 @@ describe("WebRTCConnectionService", () => {
     // Define localDescription as a getter
     Object.defineProperty(mockPeerConnection, "localDescription", {
       get: () => currentLocalDescription,
+      configurable: true
+    });
+
+    // Define iceGatheringState as a getter/setter
+    Object.defineProperty(mockPeerConnection, "iceGatheringState", {
+      get: () => iceGatheringStateValue,
+      set: (value: RTCIceGatheringState) => {
+        iceGatheringStateValue = value;
+      },
       configurable: true
     });
 
@@ -91,6 +138,15 @@ describe("WebRTCConnectionService", () => {
         configurable: true
       });
       
+      // Define getter/setter for iceGatheringState
+      Object.defineProperty(this, "iceGatheringState", {
+        get: () => iceGatheringStateValue,
+        set: (value: RTCIceGatheringState) => {
+          iceGatheringStateValue = value;
+        },
+        configurable: true
+      });
+
       return this;
     });
     vi.stubGlobal("RTCPeerConnection", RTCPeerConnectionMock);
@@ -292,6 +348,7 @@ describe("WebRTCConnectionService", () => {
       service.onConnectionStateChange(callback);
 
       await service.initialize();
+      service.onConnectionStateChange(callback); // Move after initialize
 
       const pc = service.getPeerConnection();
       const handler = pc?.oniceconnectionstatechange as (() => void) | null;
@@ -307,6 +364,7 @@ describe("WebRTCConnectionService", () => {
       service.onTrack(callback);
 
       await service.initialize();
+      service.onTrack(callback); // Move after initialize
 
       const pc = service.getPeerConnection();
       const mockStream = {} as MediaStream;
@@ -511,26 +569,36 @@ describe("WebRTCConnectionService", () => {
 
   describe("edge cases", () => {
     it("should handle null local description after setLocalDescription", async () => {
-       await service.initialize();
-      
-      // Override setLocalDescription to set null
-      const pc = service.getPeerConnection() as any;
-      pc.setLocalDescription = vi.fn().mockImplementation(() => {
-        return Promise.resolve();
-      });
-      
-      // Need to reinitialize to get fresh state
-      service.close();
-      
-      // Create new service with special mock
+      // Create special mock that returns null localDescription
       const nullLocalDescription: RTCSessionDescriptionInit | null = null;
+      let nullIceGatheringState: RTCIceGatheringState = "new";
+      
       const specialMockPc = {
         ...mockPeerConnection,
-        setLocalDescription: vi.fn().mockResolvedValue(undefined),
+        setLocalDescription: vi.fn().mockImplementation(() => {
+          // Emit events even though description is null
+          setTimeout(() => {
+            emitIceCandidate();
+            nullIceGatheringState = "complete";
+            eventListeners.get("icegatheringstatechange")?.forEach((listener) =>
+              listener(new Event("icegatheringstatechange"))
+            );
+          }, 0);
+          return Promise.resolve();
+        }),
         createOffer: vi.fn().mockResolvedValue(createMockRTCSessionDescription("offer"))
-      };
+      } as any;
+
       Object.defineProperty(specialMockPc, "localDescription", {
         get: () => nullLocalDescription,
+        configurable: true
+      });
+
+      Object.defineProperty(specialMockPc, "iceGatheringState", {
+        get: () => nullIceGatheringState,
+        set: (value: RTCIceGatheringState) => {
+          nullIceGatheringState = value;
+        },
         configurable: true
       });
       
@@ -540,13 +608,21 @@ describe("WebRTCConnectionService", () => {
           get: () => nullLocalDescription,
           configurable: true
         });
+        Object.defineProperty(this, "iceGatheringState", {
+          get: () => nullIceGatheringState,
+          set: (value: RTCIceGatheringState) => {
+            nullIceGatheringState = value;
+          },
+          configurable: true
+        });
         return this;
       });
       vi.stubGlobal("RTCPeerConnection", SpecialRTCPeerConnectionMock);
       
-      await service.initialize();
+      const specialService = new WebRTCConnectionService(mockConfig, mockDataChannelService);
+      await specialService.initialize();
 
-      await expect(service.createOffer()).rejects.toThrow(
+      await expect(specialService.createOffer()).rejects.toThrow(
         "Failed to create local description"
       );
     });
