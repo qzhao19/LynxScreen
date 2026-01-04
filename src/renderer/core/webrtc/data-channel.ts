@@ -42,6 +42,16 @@ export class DataChannelService {
 
     channel.onclose = () => {
       log.info(`Data channel closed: ${channel.label}`);
+
+      // Reset channels and cursor state when closed
+      if (channel.label === DataChannelName.CURSOR_POSITIONS) {
+        this.cursorPositionsChannel = null;
+        this.cursorsEnabled = false;
+      }
+      if (channel.label === DataChannelName.CURSOR_PING) {
+        this.cursorPingChannel = null;
+      } 
+
       this.onChannelCloseCallback?.(channel.label);
     };
 
