@@ -10,6 +10,7 @@ export class MediaStreamService {
   private displayStream: MediaStream | null = null;
   // Callback binding to the display stream
   private displayEndHandler?: () => void;
+  private onDisplayEndCallback?: () => void;
 
 
   /**
@@ -79,6 +80,7 @@ export class MediaStreamService {
           this.stopTracks(this.displayStream);
           this.displayStream = null;
         }
+        this.onDisplayEndCallback?.(); // notify listeners
       };
 
       // When user stops sharing, clear the stored stream
@@ -93,6 +95,14 @@ export class MediaStreamService {
       this.displayStream = null;
       return null;
     }
+  }
+
+  /**
+   * Registers a callback function to be invoked when the display media stream ends.
+   * @param callback - The function to call when the display stream ends.
+   */
+  public onDisplayEnd(callback: () => void): void {
+    this.onDisplayEndCallback = callback;
   }
 
   /**
