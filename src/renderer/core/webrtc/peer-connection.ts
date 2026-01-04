@@ -98,7 +98,6 @@ export class WebRTCConnectionService {
    * @returns Promise that resolves when gathering is complete.
    */
   private waitForIceGathering(timeout: number = 5000): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     return new Promise((resolve, reject) => {
       if (!this.pc) {
         // If connection is closed, directly return 
@@ -112,25 +111,42 @@ export class WebRTCConnectionService {
         return;
       }
 
+      // Records number of candidate
+      let candidateCount = 0;
+
       const checkComplete = (): void => {
         if (!this.pc || this.pc.iceGatheringState === "complete") {
           cleanup();
+          log.info(`ICE gathering complete with ${candidateCount} candidates`);
           resolve();
+        }
+      };
+
+      const handleCandidate = (event: RTCPeerConnectionIceEvent): void => {
+        if (event.candidate) {
+          candidateCount += 1;
         }
       };
 
       const cleanup = (): void => {
         clearTimeout(timeoutId);
         this.pc?.removeEventListener("icegatheringstatechange", checkComplete);
+        this.pc?.removeEventListener("icecandidate", handleCandidate);
       };
 
       const timeoutId = setTimeout(() => {
         cleanup();
-        log.warn("ICE gathering timed out, proceeding with available candidates");
-        resolve();
+        if (candidateCount === 0) {
+          log.error("ICE gathering timed out without candidates");
+          reject(new Error("ICE gathering timed out without sufficient candidates"));
+        } else {
+          log.warn(`ICE gathering timed out after ${candidateCount} candidates`);
+          resolve();
+        }
       }, timeout);
 
       this.pc.addEventListener("icegatheringstatechange", checkComplete);
+      this.pc.addEventListener("icecandidate", handleCandidate);
     });
   }
 
@@ -138,7 +154,7 @@ export class WebRTCConnectionService {
    * Initializes the RTCPeerConnection with configured ICE servers.
    */
   public async initialize(): Promise<void> {
-    this.close();
+    this.cleanup();
 
     log.info("Initializing peer connection...");
 
