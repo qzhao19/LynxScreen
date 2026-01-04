@@ -40,6 +40,12 @@ export class WebRTCService {
       // Create audio element (implemented in this class)
       this.audioElement = this.createAudioElement();
 
+       // Notify when user stops screen sharing
+      this.mediaService.onDisplayEnd(() => {
+        log.warn("Display stream ended by user");
+        void this.disconnect(); // best-effort cleanup
+      });
+
       // Set track receiving callback
       this.connectionService.onTrack((stream: MediaStream) => {
         // Set video source
@@ -53,7 +59,9 @@ export class WebRTCService {
       });
 
       // Get audio stream
-      await this.mediaService.getUserAudio();
+      await this.mediaService.getUserAudio().catch(error => {
+        log.error("Audio permission denied or unavailable:", error);
+      });
 
       if (this.isScreenSharer()) {
         // screenSharer mode: get screen sharing
@@ -71,6 +79,7 @@ export class WebRTCService {
         this.audioElement.remove();
         this.audioElement = null;
       }
+      
       log.error("Failed to setup WebRTC service:", error);
       throw error;
     }
@@ -93,8 +102,8 @@ export class WebRTCService {
    * Sets up screen sharer media tracks (display + audio)
    */
   private async setupSharerMediaTracks(): Promise<void> {
-    const displayStream = await this.mediaService.getDisplayMedia().catch(err => {
-      log.warn("Display capture failed:", err);
+    const displayStream = await this.mediaService.getDisplayMedia().catch(error => {
+      log.warn("Display capture failed:", error);
       return null;
     });
 
@@ -174,7 +183,7 @@ export class WebRTCService {
     // Get current state and toggle
     const currentState = this.mediaService.isAudioTrackActive();
     this.mediaService.toggleAudioTrack(!currentState);
-    return !currentState;
+    return this.mediaService.isAudioTrackActive();
   }
 
   /**
@@ -193,7 +202,7 @@ export class WebRTCService {
     // Get current state and toggle
     const currentState = this.mediaService.isVideoTrackActive();
     this.mediaService.toggleVideoTrack(!currentState);
-    return !currentState;
+    return this.mediaService.isVideoTrackActive();
   }
 
   /**
