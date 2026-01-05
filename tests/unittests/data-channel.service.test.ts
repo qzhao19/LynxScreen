@@ -119,12 +119,14 @@ describe("DataChannelService", () => {
 
   describe("onCursorUpdate", () => {
     it("should register cursor update callback", () => {
+      // Change to screen sharer service, as only sharer processes cursor updates
+      const sharerService = new DataChannelService(true);
       const callback = vi.fn();
-      service.onCursorUpdate(callback);
+      sharerService.onCursorUpdate(callback);
 
       // Create channels and simulate message
-      service.createChannels(mockPeerConnection);
-      service.toggleCursors(true);
+      sharerService.createChannels(mockPeerConnection);
+      sharerService.toggleCursors(true);
 
       const cursorData: RemoteCursorState = {
         id: "cursor-1",
@@ -471,7 +473,7 @@ describe("DataChannelService", () => {
   });
 
   describe("screen sharer role behavior", () => {
-    it("should not process cursor updates when isScreenSharer is true", () => {
+    it("should process cursor updates when isScreenSharer is true", () => {
       const screensharerService = new DataChannelService(true);
       const callback = vi.fn();
       screensharerService.onCursorUpdate(callback);
@@ -492,7 +494,7 @@ describe("DataChannelService", () => {
 
       mockCursorPositionsChannel.onmessage?.(messageEvent);
 
-      expect(callback).not.toHaveBeenCalled();
+      expect(callback).toHaveBeenCalled();
     });
 
     it("should process cursor ping when isScreenSharer is true", () => {
