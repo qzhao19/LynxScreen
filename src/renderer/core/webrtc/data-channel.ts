@@ -64,10 +64,12 @@ export class DataChannelService {
       channel.onmessage = (msg: MessageEvent): void => {
         if (!this.cursorsEnabled) return;
         // Server should receive, parse, and trigger a callback.
-        if (this.isScreenSharer) return;
+        // Watcher should NOT receive cursor updates
+        if (!this.isScreenSharer) return;
+        if (!this.onCursorUpdateCallback) return;
         try {
           const data = JSON.parse(msg.data) as RemoteCursorState;
-          this.onCursorUpdateCallback!(data);
+          this.onCursorUpdateCallback(data);
         } catch (error) {
           log.error("Failed to parse cursor data: ", error);
         }
