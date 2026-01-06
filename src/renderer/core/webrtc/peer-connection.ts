@@ -9,7 +9,7 @@ import { DataChannelService } from "./data-channel";
  * Handles RTCPeerConnection creation, offer/answer exchange, track management,
  * and connection state monitoring for peer-to-peer communication.
  */
-export class WebRTCConnectionService {
+export class PeerConnectionService {
   private pc: RTCPeerConnection | null = null;
   private config: WebRTCConnectionConfig;
   private dataChannelService: DataChannelService;
@@ -18,7 +18,7 @@ export class WebRTCConnectionService {
   private onTrackCallback?: (stream: MediaStream) => void;
 
   /**
-   * Creates a new WebRTCConnectionService instance.
+   * Creates a new PeerConnectionService instance.
    * 
    * @param config - Connection configuration including ICE servers.
    * @param dataChannelService - Service for managing data channels.
