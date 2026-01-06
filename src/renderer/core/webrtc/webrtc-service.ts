@@ -3,7 +3,7 @@ import type { RemoteCursorState } from "../../../shared/types/index";
 import { WebRTCConnectionState, WebRTCServiceConfig } from "../../shared/types/index";
 import { MediaStreamService } from "./media-stream";
 import { DataChannelService } from "./data-channel";
-import { WebRTCConnectionService } from "./peer-connection";
+import { PeerConnectionService } from "./peer-connection";
 
 /**
  * WebRTC main service
@@ -12,7 +12,7 @@ import { WebRTCConnectionService } from "./peer-connection";
 export class WebRTCService {
   private mediaService: MediaStreamService;
   private dataChannelService: DataChannelService;
-  private connectionService: WebRTCConnectionService;
+  private connectionService: PeerConnectionService;
   private config: WebRTCServiceConfig;
   private audioElement: HTMLAudioElement | null = null;
   private isInitialized: boolean = false;
@@ -23,7 +23,7 @@ export class WebRTCService {
     // Use isScreenSharer to explicitly determine role
     this.dataChannelService = new DataChannelService(config.isScreenSharer);
 
-    this.connectionService = new WebRTCConnectionService(
+    this.connectionService = new PeerConnectionService(
       { iceServers: config.settings.iceServers },
       this.dataChannelService
     );
