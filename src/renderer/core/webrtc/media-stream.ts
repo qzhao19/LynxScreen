@@ -80,10 +80,12 @@ export class MediaStreamService {
           this.stopTracks(this.displayStream);
           this.displayStream = null;
         }
-        this.onDisplayEndCallback?.(); // notify listeners
+        this.onDisplayEndCallback?.(); // notify listeners：sharing already ended
       };
 
       // When user stops sharing, clear the stored stream
+      // The “inactive” event for the displayStream (indicating the stream has ended entirely)
+      // The “ended” event for each track (indicating the end of an individual track)
       this.displayStream.addEventListener("inactive", this.displayEndHandler);
       this.displayStream.getTracks().forEach(track => { 
         track.addEventListener("ended", this.displayEndHandler!); 
