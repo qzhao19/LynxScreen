@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { WebRTCConnectionService, DataChannelService } from "../../src/renderer/core/index";
+import { PeerConnectionService, DataChannelService } from "../../src/renderer/core/index";
 import { WebRTCConnectionConfig } from "../../src/shared/types/index";
 
 // Mock electron-log
@@ -13,7 +13,7 @@ vi.mock("electron-log", () => ({
 }));
 
 describe("WebRTCConnectionService", () => {
-  let service: WebRTCConnectionService;
+  let service: PeerConnectionService;
   let mockDataChannelService: DataChannelService;
   let mockPeerConnection: RTCPeerConnection;
   let mockConfig: WebRTCConnectionConfig;
@@ -165,7 +165,7 @@ describe("WebRTCConnectionService", () => {
     });
     vi.stubGlobal("RTCIceCandidate", RTCIceCandidateMock);
 
-    service = new WebRTCConnectionService(mockConfig, mockDataChannelService);
+    service = new PeerConnectionService(mockConfig, mockDataChannelService);
   });
 
   afterEach(() => {
@@ -175,7 +175,7 @@ describe("WebRTCConnectionService", () => {
 
   describe("constructor", () => {
     it("should create instance with config and data channel service", () => {
-      expect(service).toBeInstanceOf(WebRTCConnectionService);
+      expect(service).toBeInstanceOf(PeerConnectionService);
     });
   });
 
@@ -619,7 +619,7 @@ describe("WebRTCConnectionService", () => {
       });
       vi.stubGlobal("RTCPeerConnection", SpecialRTCPeerConnectionMock);
       
-      const specialService = new WebRTCConnectionService(mockConfig, mockDataChannelService);
+      const specialService = new PeerConnectionService(mockConfig, mockDataChannelService);
       await specialService.initialize();
 
       await expect(specialService.createOffer()).rejects.toThrow(
