@@ -1,4 +1,36 @@
-import type { IceServerConfig } from "./settings.types";
+/**
+ * WebRTC ICE server configuration.
+ *
+ * Defines the settings for ICE (Interactive Connectivity Establishment) servers,
+ * which are used to establish peer-to-peer connections in WebRTC.
+ *
+ * @interface IceServerConfig
+ * @property {string} urls - The URL or comma-separated URLs of the ICE/STUN/TURN server.
+ *                           Example: "stun:stun.l.google.com:19302" or "turn:turnserver.com"
+ * @property {string} [username] - Optional username for authenticating with TURN servers.
+ * @property {string} [credential] - Optional credential (password or token) for authenticating with TURN servers.
+ */
+export interface IceServerConfig {
+  urls: string
+  username?:  string
+  credential?: string
+}
+
+/**
+ * User settings specific to WebRTC functionality.
+ * 
+ * This interface extracts only the settings required by the WebRTC service from the broader AppSettings,
+ * promoting better separation of concerns and avoiding unnecessary data passing.
+ * 
+ * @interface WebRTCUserConfig
+ * @property {string} username - The display name of the local user, used in connection metadata.
+ * @property {boolean} isMicrophoneEnabledOnConnect - Whether to automatically enable the microphone
+ *                                                     when establishing a WebRTC connection.
+ */
+export interface WebRTCUserConfig {
+  username: string;
+  isMicrophoneEnabledOnConnect: boolean;
+}
 
 /**
  * Enum representing the role of a peer in the WebRTC connection.
