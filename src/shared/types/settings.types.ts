@@ -1,20 +1,3 @@
-/**
- * WebRTC ICE server configuration.
- *
- * Defines the settings for ICE (Interactive Connectivity Establishment) servers,
- * which are used to establish peer-to-peer connections in WebRTC.
- *
- * @interface IceServerConfig
- * @property {string} urls - The URL or comma-separated URLs of the ICE/STUN/TURN server.
- *                           Example: "stun:stun.l.google.com:19302" or "turn:turnserver.com"
- * @property {string} [username] - Optional username for authenticating with TURN servers.
- * @property {string} [credential] - Optional credential (password or token) for authenticating with TURN servers.
- */
-export interface IceServerConfig {
-  urls: string
-  username?:  string
-  credential?: string
-}
 
 /**
  * Application settings configured by the user.
@@ -36,6 +19,5 @@ export interface AppSettings {
   color: string
   language: string
   isMicrophoneEnabledOnConnect: boolean
-  iceServers: IceServerConfig[]
 }
 
