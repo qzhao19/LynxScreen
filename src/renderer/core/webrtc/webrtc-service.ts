@@ -1,6 +1,7 @@
 import log from "electron-log";
 import type { RemoteCursorState } from "../../../shared/types/index";
 import { WebRTCConnectionState, WebRTCServiceConfig } from "../../shared/types/index";
+import { getDefaultWebRTCConnectionConfig } from "../../../shared/utils/index";
 import { MediaStreamService } from "./media-stream";
 import { DataChannelService } from "./data-channel";
 import { PeerConnectionService } from "./peer-connection";
@@ -23,8 +24,11 @@ export class WebRTCService {
     // Use isScreenSharer to explicitly determine role
     this.dataChannelService = new DataChannelService(config.isScreenSharer);
 
+    // use default ICE servers when not provided
+    const connectionConfig = config.connectionConfig || getDefaultWebRTCConnectionConfig();
+
     this.connectionService = new PeerConnectionService(
-      { iceServers: config.settings.iceServers },
+      connectionConfig,
       this.dataChannelService
     );
   }
@@ -121,7 +125,7 @@ export class WebRTCService {
     const audioStream = this.mediaService.getAudioStream();
     if (audioStream) {
       for (const track of audioStream.getTracks()) {
-        track.enabled = this.config.settings.isMicrophoneEnabledOnConnect;
+        track.enabled = this.config.userConfig.isMicrophoneEnabledOnConnect;
         this.connectionService.addTrack(track, displayStream);
       }
     }
@@ -135,7 +139,7 @@ export class WebRTCService {
 
     if (audioStream) {
       for (const track of audioStream.getTracks()) {
-        track.enabled = this.config.settings.isMicrophoneEnabledOnConnect;
+        track.enabled = this.config.userConfig.isMicrophoneEnabledOnConnect;
         this.connectionService.addTrack(track, audioStream);
       }
     }
