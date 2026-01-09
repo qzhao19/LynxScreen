@@ -1,6 +1,10 @@
 import log from "electron-log";
-import type { RemoteCursorState } from "../../../shared/types/index";
-import { WebRTCConnectionState, WebRTCServiceConfig } from "../../shared/types/index";
+import { RemoteCursorState } from "../../../shared/types/index";
+import { 
+  WebRTCConnectionState, 
+  WebRTCSharerConfig, 
+  WebRTCWatcherConfig, 
+  WebRTCServiceConfig } from "../../shared/types/index";
 import { getDefaultWebRTCConnectionConfig } from "../../../shared/utils/index";
 import { MediaStreamService } from "./media-stream";
 import { DataChannelService } from "./data-channel";
@@ -34,59 +38,17 @@ export class WebRTCService {
   }
 
   /**
-   * Initializes the WebRTC service
+   * Type guard to check if config is for screen sharer
    */
-  async setup(): Promise<void> {
-    try {
-      // Initialize connection
-      await this.connectionService.initialize();
+  private isSharerConfig(config: WebRTCServiceConfig): config is WebRTCSharerConfig {
+    return config.isScreenSharer === true;
+  }
 
-      // Create audio element (implemented in this class)
-      this.audioElement = this.createAudioElement();
-
-       // Notify when user stops screen sharing
-      this.mediaService.onDisplayEnd(() => {
-        log.warn("Display stream ended by user");
-        void this.disconnect(); // best-effort cleanup
-      });
-
-      // Set track receiving callback
-      this.connectionService.onTrack((stream: MediaStream) => {
-        // Set video source
-        if (this.config.remoteVideo) {
-          this.config.remoteVideo.srcObject = stream;
-        }
-        // Set audio source
-        if (this.audioElement) {
-          this.audioElement.srcObject = stream;
-        }
-      });
-
-      // Get audio stream
-      await this.mediaService.getUserAudio().catch(error => {
-        log.error("Audio permission denied or unavailable:", error);
-      });
-
-      if (this.isScreenSharer()) {
-        // screenSharer mode: get screen sharing
-        await this.setupSharerMediaTracks();
-      } else {
-        // screenWatcher mode: only add audio
-        await this.setupWatcherMediaTracks();
-      }
-
-      this.isInitialized = true;
-      log.info("WebRTC service initialized successfully");
-    } catch (error) {
-      // Cleanup audio element on failure
-      if (this.audioElement) {
-        this.audioElement.remove();
-        this.audioElement = null;
-      }
-      
-      log.error("Failed to setup WebRTC service:", error);
-      throw error;
-    }
+  /**
+   * Type guard to check if config is for screen watcher
+   */
+  private isWatcherConfig(config: WebRTCServiceConfig): config is WebRTCWatcherConfig {
+    return config.isScreenSharer === false;
   }
 
   /**
@@ -146,10 +108,68 @@ export class WebRTCService {
   }
 
   /**
+   * Initializes the WebRTC service
+   */
+  public async setup(): Promise<void> {
+    try {
+      // Initialize connection
+      await this.connectionService.initialize();
+
+      // Create audio element (implemented in this class)
+      this.audioElement = this.createAudioElement();
+
+       // Notify when user stops screen sharing
+      this.mediaService.onDisplayEnd(() => {
+        log.warn("Display stream ended by user");
+        void this.disconnect(); // best-effort cleanup
+      });
+
+      // Set track receiving callback
+      this.connectionService.onTrack((stream: MediaStream) => {
+        // Set video source for watcher
+        if (this.isWatcherConfig(this.config)) {
+          this.config.remoteVideo.srcObject = stream;
+        }
+        // Set audio source
+        if (this.audioElement) {
+          this.audioElement.srcObject = stream;
+        }
+      });
+
+      // Get audio stream
+      await this.mediaService.getUserAudio().catch(error => {
+        log.error("Audio permission denied or unavailable:", error);
+      });
+
+      if (this.isScreenSharer()) {
+        // screenSharer mode: get screen sharing
+        await this.setupSharerMediaTracks();
+      } else {
+        // screenWatcher mode: only add audio
+        await this.setupWatcherMediaTracks();
+      }
+
+      this.isInitialized = true;
+      log.info("WebRTC service initialized successfully");
+    } catch (error) {
+      // Cleanup audio element on failure
+      if (this.audioElement) {
+        this.audioElement.remove();
+        this.audioElement = null;
+      }
+      
+      log.error("Failed to setup WebRTC service:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Creates sharer offer (screen sharer initiates connection)
    */
-  async createSharerOffer(): Promise<RTCSessionDescriptionInit> {
-    this.ensureInitialized();
+  public async createSharerOffer(): Promise<RTCSessionDescriptionInit> {
+    if (!this.isInitialized) {
+      throw new Error("WebRTC service not initialized. Call setup() first.");
+    }
 
     // Create data channels
     this.connectionService.createDataChannels();
@@ -161,10 +181,12 @@ export class WebRTCService {
   /**
    * Creates watcher answer (screen watcher responds to offer)
    */
-  async createWatcherAnswer(
+  public async createWatcherAnswer(
     offer: RTCSessionDescriptionInit
   ): Promise<RTCSessionDescriptionInit> {
-    this.ensureInitialized();
+    if (!this.isInitialized) {
+      throw new Error("WebRTC service not initialized. Call setup() first.");
+    }
     return await this.connectionService.createAnswer(offer);
   }
 
@@ -172,8 +194,10 @@ export class WebRTCService {
    * Accepts remote answer to complete connection
    * Used by sharer to receive watcher's answer
    */
-  async acceptAnswer(answer: RTCSessionDescriptionInit): Promise<void> {
-    this.ensureInitialized();
+  public async acceptAnswer(answer: RTCSessionDescriptionInit): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error("WebRTC service not initialized. Call setup() first.");
+    }
     await this.connectionService.acceptAnswer(answer);
   }
 
@@ -183,7 +207,7 @@ export class WebRTCService {
    * Toggles microphone state
    * @returns Whether microphone is currently enabled
    */
-  toggleMicrophone(): boolean {
+  public toggleMicrophone(): boolean {
     // Get current state and toggle
     const currentState = this.mediaService.isAudioTrackActive();
     this.mediaService.toggleAudioTrack(!currentState);
@@ -194,7 +218,7 @@ export class WebRTCService {
    * Sets microphone state
    * @param enabled - Whether to enable microphone
    */
-  setMicrophoneEnabled(enabled: boolean): void {
+  public setMicrophoneEnabled(enabled: boolean): void {
     this.mediaService.toggleAudioTrack(enabled);
   }
 
@@ -202,7 +226,7 @@ export class WebRTCService {
    * Toggles display stream state
    * @returns Whether display stream is currently enabled
    */
-  toggleDisplayStream(): boolean {
+  public toggleDisplayStream(): boolean {
     // Get current state and toggle
     const currentState = this.mediaService.isVideoTrackActive();
     this.mediaService.toggleVideoTrack(!currentState);
@@ -213,42 +237,42 @@ export class WebRTCService {
    * Sets display stream state
    * @param enabled - Whether to enable display stream
    */
-  setDisplayStreamEnabled(enabled: boolean): void {
+  public setDisplayStreamEnabled(enabled: boolean): void {
     this.mediaService.toggleVideoTrack(enabled);
   }
 
   /**
    * Checks if microphone is active
    */
-  isMicrophoneActive(): boolean {
+  public isMicrophoneActive(): boolean {
     return this.mediaService.isAudioTrackActive();
   }
 
   /**
    * Checks if audio input is available
    */
-  hasAudioInput(): boolean {
+  public hasAudioInput(): boolean {
     return this.mediaService.hasAudioInput();
   }
 
   /**
    * Gets audio stream
    */
-  getAudioStream(): MediaStream | null {
+  public getAudioStream(): MediaStream | null {
     return this.mediaService.getAudioStream();
   }
 
   /**
    * Checks if display stream is active
    */
-  isDisplayStreamActive(): boolean {
+  public isDisplayStreamActive(): boolean {
     return this.mediaService.isVideoTrackActive();
   }
 
   /**
    * Checks if display sharing is active
    */
-  isDisplayActive(): boolean {
+  public isDisplayActive(): boolean {
     return this.mediaService.isDisplayActive();
   }
 
@@ -257,63 +281,63 @@ export class WebRTCService {
   /**
    * Updates remote cursor
    */
-  updateRemoteCursor(cursorData: RemoteCursorState): boolean {
+  public updateRemoteCursor(cursorData: RemoteCursorState): boolean {
     return this.dataChannelService.sendCursorUpdate(cursorData);
   }
 
   /**
    * Pings remote cursor
    */
-  pingRemoteCursor(cursorId: string): boolean {
+  public pingRemoteCursor(cursorId: string): boolean {
     return this.dataChannelService.sendCursorPing(cursorId);
   }
 
   /**
    * Toggles remote cursors
    */
-  toggleRemoteCursors(enabled: boolean): boolean {
+  public toggleRemoteCursors(enabled: boolean): boolean {
     return this.dataChannelService.toggleCursors(enabled);
   }
 
   /**
    * Checks if cursors are enabled
    */
-  isCursorsEnabled(): boolean {
+  public isCursorsEnabled(): boolean {
     return this.dataChannelService.isCursorsEnabled();
   }
 
   /**
    * Checks if data channels are ready
    */
-  areDataChannelsReady(): boolean {
+  public areDataChannelsReady(): boolean {
     return this.dataChannelService.areAllChannelsReady();
   }
 
   /**
    * Registers cursor update callback
    */
-  onCursorUpdate(callback: (data: RemoteCursorState) => void): void {
+  public onCursorUpdate(callback: (data: RemoteCursorState) => void): void {
     this.dataChannelService.onCursorUpdate(callback);
   }
 
   /**
    * Registers cursor ping callback
    */
-  onCursorPing(callback: (cursorId: string) => void): void {
+  public onCursorPing(callback: (cursorId: string) => void): void {
     this.dataChannelService.onCursorPing(callback);
   }
 
   /**
    * Registers data channel open callback
    */
-  onChannelOpen(callback: (channelName: string) => void): void {
+  public onChannelOpen(callback: (channelName: string) => void): void {
     this.dataChannelService.onChannelOpen(callback);
   }
 
   /**
    * Registers data channel close callback
    */
-  onChannelClose(callback: (channelName: string) => void): void {
+  public onChannelClose(callback: (channelName: string) => void): void {
     this.dataChannelService.onChannelClose(callback);
   }
 
@@ -322,28 +346,28 @@ export class WebRTCService {
   /**
    * Registers connection state change callback
    */
-  onConnectionStateChange(callback: (state: WebRTCConnectionState) => void): void {
+  public onConnectionStateChange(callback: (state: WebRTCConnectionState) => void): void {
     this.connectionService.onConnectionStateChange(callback);
   }
 
   /**
    * Checks if connected
    */
-  isConnected(): boolean {
+  public isConnected(): boolean {
     return this.connectionService.isConnected();
   }
 
   /**
    * Gets connection state
    */
-  getConnectionState(): RTCPeerConnectionState | null {
+  public getConnectionState(): RTCPeerConnectionState | null {
     return this.connectionService.getConnectionState();
   }
 
   /**
    * Gets ICE connection state
    */
-  getIceConnectionState(): RTCIceConnectionState | null {
+  public getIceConnectionState(): RTCIceConnectionState | null {
     return this.connectionService.getIceConnectionState();
   }
 
@@ -352,7 +376,7 @@ export class WebRTCService {
   /**
    * Disconnects and cleans up resources
    */
-  async disconnect(): Promise<void> {
+  public async disconnect(): Promise<void> {
     log.info("Disconnecting WebRTC service...");
 
     // Clean up media
@@ -369,7 +393,7 @@ export class WebRTCService {
     }
 
     // Clean up video element
-    if (this.config.remoteVideo) {
+    if (this.isWatcherConfig(this.config)) {
       this.config.remoteVideo.srcObject = null;
     }
 
@@ -380,30 +404,21 @@ export class WebRTCService {
   /**
    * Checks if service is initialized
    */
-  isServiceInitialized(): boolean {
+  public isServiceInitialized(): boolean {
     return this.isInitialized;
   }
 
   /**
    * Checks if current role is screen sharer
    */
-  isScreenSharer(): boolean {
+  public isScreenSharer(): boolean {
     return this.config.isScreenSharer;
   }
 
   /**
    * Checks if current role is screen watcher
    */
-  isScreenWatcher(): boolean {
+  public isScreenWatcher(): boolean {
     return !this.config.isScreenSharer;
-  }
-
-  /**
-   * Ensures service is initialized
-   */
-  private ensureInitialized(): void {
-    if (!this.isInitialized) {
-      throw new Error("WebRTC service not initialized. Call setup() first.");
-    }
   }
 }
