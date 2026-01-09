@@ -29,22 +29,38 @@ export enum DataChannelName {
 /**
  * Configuration object for initializing and managing the WebRTC service.
  * 
- * This interface encapsulates all necessary settings and references required to establish
- * and manage a peer-to-peer WebRTC connection for screen sharing.
- * 
- * @interface WebRTCServiceConfig
+ * @interface WebRTCSharerConfig
  * @property {WebRTCUserConfig} userConfig - User-specific settings required for WebRTC initialization.
- * @property {boolean} isScreenSharer - Indicates the role of the local peer in the connection.
- *                                    - true: screen sharer (initiates the connection, sends screen)
- *                                    - false: screen watcher (receives the screen)
- * @property {HTMLVideoElement | null} [remoteVideo] - Optional reference to the HTML video element where
- *                                                     the remote peer's video stream (screen capture) will be rendered.
+ * @property {boolean} isScreenSharer - Indicates screen sharer (initiates the connection, sends screen)
  * @property {WebRTCConnectionConfig} [connectionConfig] - Optional WebRTC connection settings including ICE servers.
  *                                                        If not provided, default ICE servers will be used.
  */
-export interface WebRTCServiceConfig {
+export interface WebRTCSharerConfig {
   userConfig: WebRTCUserConfig;
-  isScreenSharer: boolean
-  remoteVideo?: HTMLVideoElement | null
+  isScreenSharer: true;
   connectionConfig?: WebRTCConnectionConfig;
 }
+
+/**
+ * Configuration object for initializing and managing the WebRTC service.
+ * 
+ * @interface WebRTCWatcherConfig
+ * @property {WebRTCUserConfig} userConfig - User-specific settings required for WebRTC initialization.
+ * @property {boolean} isScreenSharer - Indicates the screen watcher (receives the screen)
+ * @property {HTMLVideoElement} [remoteVideo] - Reference to the HTML video element where
+ *                                              the remote peer's video stream (screen capture) will be rendered.
+ * @property {WebRTCConnectionConfig} [connectionConfig] - Optional WebRTC connection settings including ICE servers.
+ *                                                        If not provided, default ICE servers will be used.
+ */
+export interface WebRTCWatcherConfig {
+  userConfig: WebRTCUserConfig;
+  isScreenSharer: false;
+  remoteVideo: HTMLVideoElement;  // Required for watchers
+  connectionConfig?: WebRTCConnectionConfig;
+}
+
+/**
+ * Unified configuration object for WebRTC service.
+ * Use WebRTCSharerConfig or WebRTCWatcherConfig based on role.
+ */
+export type WebRTCServiceConfig = WebRTCSharerConfig | WebRTCWatcherConfig;
