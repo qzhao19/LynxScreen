@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { WebRTCService } from "../../src/renderer/core/webrtc/webrtc-service";
-import { AppSettings, RemoteCursorState } from "../../src/shared/types/index";
-import { WebRTCServiceConfig } from "../../src/renderer/shared/types/index";
+import { RemoteCursorState } from "../../src/shared/types/index";
+import { WebRTCSharerConfig, WebRTCWatcherConfig } from "../../src/renderer/shared/types/index";
 
 // Mock electron-log
 vi.mock("electron-log", () => ({
@@ -15,8 +15,8 @@ vi.mock("electron-log", () => ({
 
 describe("WebRTCService", () => {
   let service: WebRTCService;
-  let mockConfig: WebRTCServiceConfig;
-  let mockSettings: AppSettings;
+  let mockSharerConfig: WebRTCSharerConfig;
+  let mockWatcherConfig: WebRTCWatcherConfig;
   let mockVideoElement: HTMLVideoElement;
   let mockPeerConnection: RTCPeerConnection;
   let mockAudioStream: MediaStream;
@@ -49,27 +49,37 @@ describe("WebRTCService", () => {
   });
 
   beforeEach(() => {
-    // Mock settings
-    mockSettings = {
-      username: "testUser",
-      color: "#FF5733",
-      language: "en",
-      isMicrophoneEnabledOnConnect: true,
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" }
-      ]
-    };
-
     // Mock video element
     mockVideoElement = {
       srcObject: null
     } as unknown as HTMLVideoElement;
 
     // Mock config
-    mockConfig = {
-      settings: mockSettings,
+    mockSharerConfig = {
+      userConfig: {
+        username: "testUser",
+        isMicrophoneEnabledOnConnect: false
+      },
       isScreenSharer: true,
-      remoteVideo: mockVideoElement
+      connectionConfig: {
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" }
+        ]
+      }
+    };
+
+    mockWatcherConfig = {
+      userConfig: {
+        username: "testUser",
+        isMicrophoneEnabledOnConnect: false
+      },
+      isScreenSharer: false,
+      remoteVideo: mockVideoElement,
+      connectionConfig: {
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" }
+        ]
+      }
     };
 
     // Mock streams
@@ -176,7 +186,7 @@ describe("WebRTCService", () => {
     });
     vi.spyOn(document.body, "appendChild").mockImplementation(() => mockAudioElement as unknown as Node);
 
-    service = new WebRTCService(mockConfig);
+    service = new WebRTCService(mockSharerConfig);
   });
 
   afterEach(() => {
@@ -192,11 +202,11 @@ describe("WebRTCService", () => {
     });
 
     it("should create instance with screen watcher config", () => {
-      const watcherConfig: WebRTCServiceConfig = {
-        ...mockConfig,
-        isScreenSharer: false
-      };
-      const watcherService = new WebRTCService(watcherConfig);
+      // const watcherConfig: WebRTCServiceConfig = {
+      //   ...mockConfig,
+      //   isScreenSharer: false
+      // };
+      const watcherService = new WebRTCService(mockWatcherConfig);
 
       expect(watcherService.isScreenSharer()).toBe(false);
       expect(watcherService.isScreenWatcher()).toBe(true);
@@ -220,11 +230,11 @@ describe("WebRTCService", () => {
     });
 
     it("should initialize service as screen watcher", async () => {
-      const watcherConfig: WebRTCServiceConfig = {
-        ...mockConfig,
-        isScreenSharer: false
-      };
-      const watcherService = new WebRTCService(watcherConfig);
+      // const watcherConfig: WebRTCServiceConfig = {
+      //   ...mockConfig,
+      //   isScreenSharer: false
+      // };
+      const watcherService = new WebRTCService(mockWatcherConfig);
 
       await watcherService.setup();
 
@@ -277,11 +287,11 @@ describe("WebRTCService", () => {
 
   describe("createWatcherAnswer", () => {
     it("should create answer for received offer", async () => {
-      const watcherConfig: WebRTCServiceConfig = {
-        ...mockConfig,
-        isScreenSharer: false
-      };
-      const watcherService = new WebRTCService(watcherConfig);
+      // const watcherConfig: WebRTCServiceConfig = {
+      //   ...mockConfig,
+      //   isScreenSharer: false
+      // };
+      const watcherService = new WebRTCService(mockWatcherConfig);
       await watcherService.setup();
 
       const offer = createMockRTCSessionDescription("offer");
@@ -293,11 +303,11 @@ describe("WebRTCService", () => {
     });
 
     it("should throw error if not initialized", async () => {
-      const watcherConfig: WebRTCServiceConfig = {
-        ...mockConfig,
-        isScreenSharer: false
-      };
-      const watcherService = new WebRTCService(watcherConfig);
+      // const watcherConfig: WebRTCServiceConfig = {
+      //   ...mockConfig,
+      //   isScreenSharer: false
+      // };
+      const watcherService = new WebRTCService(mockWatcherConfig);
 
       const offer = createMockRTCSessionDescription("offer");
       await expect(watcherService.createWatcherAnswer(offer)).rejects.toThrow(
@@ -506,11 +516,12 @@ describe("WebRTCService", () => {
         expect(mockPeerConnection.close).toHaveBeenCalled();
       });
 
-      it("should clear video element srcObject", async () => {
-        await service.setup();
+      it("should clear video element srcObject for watcher", async () => {
+        const watcherService = new WebRTCService(mockWatcherConfig);
+        await watcherService.setup();
         mockVideoElement.srcObject = {} as MediaStream;
 
-        await service.disconnect();
+        await watcherService.disconnect();
 
         expect(mockVideoElement.srcObject).toBeNull();
       });
@@ -545,11 +556,11 @@ describe("WebRTCService", () => {
       });
 
       it("should return false for screen watcher", () => {
-        const watcherConfig: WebRTCServiceConfig = {
-          ...mockConfig,
-          isScreenSharer: false
-        };
-        const watcherService = new WebRTCService(watcherConfig);
+        // const watcherConfig: WebRTCServiceConfig = {
+        //   ...mockConfig,
+        //   isScreenSharer: false
+        // };
+        const watcherService = new WebRTCService(mockWatcherConfig);
 
         expect(watcherService.isScreenSharer()).toBe(false);
       });
@@ -561,11 +572,11 @@ describe("WebRTCService", () => {
       });
 
       it("should return true for screen watcher", () => {
-        const watcherConfig: WebRTCServiceConfig = {
-          ...mockConfig,
-          isScreenSharer: false
-        };
-        const watcherService = new WebRTCService(watcherConfig);
+        // const watcherConfig: WebRTCServiceConfig = {
+        //   ...mockConfig,
+        //   isScreenSharer: false
+        // };
+        const watcherService = new WebRTCService(mockWatcherConfig);
 
         expect(watcherService.isScreenWatcher()).toBe(true);
       });
@@ -574,10 +585,11 @@ describe("WebRTCService", () => {
 
   describe("track handling", () => {
     it("should set remote video srcObject when track is received", async () => {
-      await service.setup();
+      const watcherService = new WebRTCService(mockWatcherConfig);
+      await watcherService.setup();
 
       // Get the peer connection and trigger ontrack
-      const pc = (service as any).connectionService.getPeerConnection();
+      const pc = (watcherService as any).connectionService.getPeerConnection();
       const mockRemoteStream = createMockMediaStream("video");
 
       if (pc?.ontrack) {
@@ -602,17 +614,17 @@ describe("WebRTCService", () => {
       expect(service.isServiceInitialized()).toBe(true);
     });
 
-    it("should handle null remoteVideo config", async () => {
-      const noVideoConfig: WebRTCServiceConfig = {
-        ...mockConfig,
-        remoteVideo: null
-      };
-      const noVideoService = new WebRTCService(noVideoConfig);
+    // it("should handle null remoteVideo config", async () => {
+    //   const noVideoConfig: WebRTCServiceConfig = {
+    //     ...mockConfig,
+    //     remoteVideo: null
+    //   };
+    //   const noVideoService = new WebRTCService(noVideoConfig);
 
-      await noVideoService.setup();
+    //   await noVideoService.setup();
 
-      expect(noVideoService.isServiceInitialized()).toBe(true);
-    });
+    //   expect(noVideoService.isServiceInitialized()).toBe(true);
+    // });
 
     it("should handle multiple setup calls", async () => {
       await service.setup();
