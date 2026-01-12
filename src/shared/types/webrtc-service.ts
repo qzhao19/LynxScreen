@@ -1,7 +1,7 @@
 import type { 
   WebRTCConnectionConfig, 
   WebRTCUserConfig, 
-} from "../../../shared/types/index";
+} from "./webrtc-shared";
 
 /**
  * Type alias representing the connection state of a WebRTC ICE (Interactive Connectivity Establishment) connection.
