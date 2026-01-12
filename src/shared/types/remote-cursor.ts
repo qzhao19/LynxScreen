@@ -4,7 +4,7 @@
  * This type captures the real-time state of a remote user's cursor, including their identity,
  * visual representation, and current position on the shared screen.
  *
- * @typedef {Object} RemoteCursorState
+ * @interface {Object} RemoteCursorState
  * @property {string} id - Unique identifier for the remote user/cursor.
  * @property {string} name - Display name of the remote user whose cursor is being tracked.
  * @property {string} color - Visual color representation of the remote cursor (e.g., "#FF5733", "blue").
