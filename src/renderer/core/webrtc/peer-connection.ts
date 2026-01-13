@@ -1,6 +1,5 @@
 import log from "electron-log";
-import { WebRTCConnectionState } from "../../shared/types/index";
-import { WebRTCConnectionConfig } from "../../../shared/types/index";
+import { WebRTCConnectionState, WebRTCConnectionConfig } from "../../../shared/types/index";
 import { DataChannelService } from "./data-channel";
 
 /**
