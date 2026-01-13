@@ -1,10 +1,11 @@
 import log from "electron-log";
-import { RemoteCursorState } from "../../../shared/types/index";
 import { 
+  RemoteCursorState,
   WebRTCConnectionState, 
   WebRTCSharerConfig, 
   WebRTCWatcherConfig, 
-  WebRTCServiceConfig } from "../../shared/types/index";
+  WebRTCServiceConfig
+ } from "../../../shared/types/index";
 import { getDefaultWebRTCConnectionConfig } from "../../../shared/utils/index";
 import { MediaStreamService } from "./media-stream";
 import { DataChannelService } from "./data-channel";
