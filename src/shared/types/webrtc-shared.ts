@@ -43,15 +43,6 @@ export enum PeerRole {
 }
 
 /**
- * Interface representing connection metadata for a peer.
- * @interface ConnectionData
- * @property {string} username - The name of the user establishing the connection
- */
-export interface ConnectionData {
-  username: string
-}
-
-/**
  * Interface representing the complete connection information exchanged between peers.
  * This is typically encoded in a URL for easy sharing between peers.
  * @property {string} type - The role of the peer in the connection (server or client)
@@ -61,7 +52,7 @@ export interface ConnectionData {
  */
 export interface UrlData {
   role: PeerRole
-  data: ConnectionData
+  username: string
   rtcSessionDescription: RTCSessionDescriptionInit
 }
 
