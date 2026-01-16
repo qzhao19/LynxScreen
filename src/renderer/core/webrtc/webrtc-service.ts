@@ -1,7 +1,6 @@
 import log from "electron-log";
 import { 
   RemoteCursorState,
-  WebRTCConnectionState, 
   WebRTCSharerConfig, 
   WebRTCWatcherConfig, 
   WebRTCServiceConfig
@@ -347,7 +346,7 @@ export class WebRTCService {
   /**
    * Registers connection state change callback
    */
-  public onConnectionStateChange(callback: (state: WebRTCConnectionState) => void): void {
+  public onConnectionStateChange(callback: (state: RTCIceConnectionState) => void): void {
     this.connectionService.onConnectionStateChange(callback);
   }
 
