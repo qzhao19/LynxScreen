@@ -1,2 +1,2 @@
-export * from "./webrtc.utils";
+export * from "./webrtc-config";
 export * from "./signaling-url";
