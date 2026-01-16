@@ -4,12 +4,6 @@ import type {
 } from "./webrtc-shared";
 
 /**
- * Type alias representing the connection state of a WebRTC ICE (Interactive Connectivity Establishment) connection.
- * @typedef {RTCIceConnectionState} WebRTCConnectionState
- */
-export type WebRTCConnectionState = RTCIceConnectionState
-
-/**
  * Enum defining the names of WebRTC data channels used for screen sharing communication.
  * 
  * These channels are used to transmit different types of data between the screen sharer
