@@ -1,5 +1,5 @@
 import log from "electron-log";
-import { WebRTCConnectionState, WebRTCConnectionConfig } from "../../../shared/types/index";
+import { WebRTCConnectionConfig } from "../../../shared/types/index";
 import { DataChannelService } from "./data-channel";
 
 /**
@@ -13,7 +13,7 @@ export class PeerConnectionService {
   private config: WebRTCConnectionConfig;
   private dataChannelService: DataChannelService;
 
-  private onConnectionStateChangeCallback?: (state: WebRTCConnectionState) => void;
+  private onConnectionStateChangeCallback?: (state: RTCIceConnectionState) => void;
   private onTrackCallback?: (stream: MediaStream) => void;
 
   /**
@@ -289,7 +289,7 @@ export class PeerConnectionService {
    * 
    * @param callback - Function to call when connection state changes.
    */
-  public onConnectionStateChange(callback: (state: WebRTCConnectionState) => void): void {
+  public onConnectionStateChange(callback: (state: RTCIceConnectionState) => void): void {
     this.onConnectionStateChangeCallback = callback;
   }
 
