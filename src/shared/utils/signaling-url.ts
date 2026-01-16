@@ -160,7 +160,6 @@ export async function encodeConnectionUrl(
   return finalUrl;
 }
 
-
 /**
  * Decodes a connection URL back to its components
  * 
@@ -175,8 +174,8 @@ export async function decodeConnectionUrl(url: string): Promise<{
   try {
     const parsedUrl = new URL(url);
 
-    // Validate role from path
-    if (parsedUrl.protocol !== `${URL_PROTOCOL.slice(0, -2)}:`) {
+    // Validate protocol from path
+    if (parsedUrl.protocol !== URL_PROTOCOL.replace("://", ":")) {
       log.error("[SignalingURL] Invalid URL protocol");
       return null;
     }
@@ -224,7 +223,7 @@ export function isValidConnectionUrl(url: string): boolean {
     const parsedUrl = new URL(url);
     
     // Check protocol
-    if (parsedUrl.protocol !== `${URL_PROTOCOL.slice(0, -2)}:`) {
+    if (parsedUrl.protocol !== URL_PROTOCOL.replace("://", ":")) {
       return false;
     }
 
