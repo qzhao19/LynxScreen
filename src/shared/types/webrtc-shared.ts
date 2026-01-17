@@ -7,12 +7,12 @@
  * @interface IceServerConfig
  * @property {string} urls - The URL or comma-separated URLs of the ICE/STUN/TURN server.
  *                           Example: "stun:stun.l.google.com:19302" or "turn:turnserver.com"
- * @property {string} [username] - Optional username for authenticating with TURN servers.
+ * @property {string} [authUsername] - Optional authUsername for authenticating with TURN servers.
  * @property {string} [credential] - Optional credential (password or token) for authenticating with TURN servers.
  */
 export interface IceServerConfig {
   urls: string
-  username?:  string
+  authUsername?:  string
   credential?: string
 }
 
