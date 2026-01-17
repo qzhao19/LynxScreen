@@ -6,9 +6,9 @@ import {
   WebRTCServiceConfig
  } from "../../../shared/types/index";
 import { getDefaultWebRTCConnectionConfig } from "../../../shared/utils/index";
-import { MediaStreamService } from "./media-stream";
-import { DataChannelService } from "./data-channel";
-import { PeerConnectionService } from "./peer-connection";
+import { MediaStreamService } from "./media/index";
+import { DataChannelService } from "./data/index";
+import { PeerConnectionService } from "./connection/index";
 
 /**
  * WebRTC main service
