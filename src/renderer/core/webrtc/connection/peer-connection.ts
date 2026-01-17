@@ -1,6 +1,6 @@
 import log from "electron-log";
-import { WebRTCConnectionConfig } from "../../../shared/types/index";
-import { DataChannelService } from "./data-channel";
+import { WebRTCConnectionConfig } from "../../../../shared/types/index";
+import { DataChannelService } from "../data/data-channel";
 
 /**
  * Service for managing WebRTC peer connection lifecycle.
@@ -160,7 +160,7 @@ export class PeerConnectionService {
     this.pc = new RTCPeerConnection({
       iceServers: this.config.iceServers.map((server) => ({
         urls: server.urls,
-        username: server.username,
+        authUsername: server.authUsername,
         credential: server.credential
       }))
     });
