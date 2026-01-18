@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { MediaStreamService } from "../../src/renderer/core/index";
+import { MediaStreamService } from "../../src/renderer/core/webrtc/media/index";
 
 // Mock electron-log
 vi.mock("electron-log", () => ({
