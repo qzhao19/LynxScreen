@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { DataChannelService } from "../../src/renderer/core/index";
+import { DataChannelService } from "../../src/renderer/core/webrtc/data/index";
 import { DataChannelName, RemoteCursorState } from "../../src/shared/types/index";
 
 // Mock electron-log
