@@ -16,8 +16,8 @@ export async function copyToClipboard(text: string): Promise<void> {
       log.debug("[Clipboard] Copied via Electron clipboard");
       return;
     }
-  } catch (errorMsg) {
-    log.warn("[Clipboard] Electron clipboard unavailable: ", errorMsg);
+  } catch (error) {
+    log.warn("[Clipboard] Electron clipboard unavailable: ", error);
   }
 
   // Try use navigator.clipboard
@@ -25,14 +25,14 @@ export async function copyToClipboard(text: string): Promise<void> {
     await navigator.clipboard.writeText(text);
     log.debug("[Clipboard] Copied via navigator.clipboard");
     return;
-  } catch (errorMsg) {
-    log.warn("[Clipboard] navigator.clipboard failed:", errorMsg);
+  } catch (error) {
+    log.warn("[Clipboard] navigator.clipboard failed:", error);
   }
 
   // All methods failed - throw error
-  const errorMsg = "All clipboard methods failed. Clipboard access may be restricted.";
-  log.error(`[Clipboard] ${errorMsg}`);
-  throw new Error(errorMsg);
+  const error = "All clipboard methods failed. Clipboard access may be restricted.";
+  log.error(`[Clipboard] ${error}`);
+  throw new Error(error);
 }
 
 /**
@@ -50,8 +50,8 @@ export async function readFromClipboard(): Promise<string | null> {
       log.debug("[Clipboard] Read via Electron clipboard");
       return text;
     }
-  } catch (errorMsg) {
-    log.warn("[Clipboard] Electron clipboard unavailable:", errorMsg);
+  } catch (error) {
+    log.warn("[Clipboard] Electron clipboard unavailable:", error);
   }
 
   // Try use navigator.clipboard
@@ -59,8 +59,8 @@ export async function readFromClipboard(): Promise<string | null> {
     const text = await navigator.clipboard.readText();
     log.debug("[Clipboard] Read via navigator.clipboard");
     return text;
-  } catch (errorMsg) {
-    log.warn("[Clipboard] navigator.clipboard failed:", errorMsg);
+  } catch (error) {
+    log.warn("[Clipboard] navigator.clipboard failed:", error);
     return null;
   }
 }
