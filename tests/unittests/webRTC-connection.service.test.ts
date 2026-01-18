@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { PeerConnectionService, DataChannelService } from "../../src/renderer/core/index";
+import { DataChannelService } from "../../src/renderer/core/webrtc/data/index";
+import { PeerConnectionService } from "../../src/renderer/core/webrtc/connection/index";
 import { WebRTCConnectionConfig } from "../../src/shared/types/index";
 
 // Mock electron-log
@@ -60,7 +61,7 @@ describe("WebRTCConnectionService", () => {
     mockConfig = {
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
-        { urls: "turn:turn.example.com", username: "user", credential: "pass" }
+        { urls: "turn:turn.example.com", authUsername: "user", credential: "pass" }
       ]
     };
 
