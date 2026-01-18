@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { WebRTCService } from "../../src/renderer/core/webrtc/webrtc-service";
+import { WebRTCService } from "../../src/renderer/core/webrtc/index";
 import { RemoteCursorState } from "../../src/shared/types/index";
 import { WebRTCSharerConfig, WebRTCWatcherConfig } from "../../src/shared/types/index";
 
