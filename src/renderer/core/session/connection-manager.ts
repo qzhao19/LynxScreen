@@ -1,0 +1,299 @@
+import log from "electron-log";
+import { WebRTCService } from "../webrtc/index";
+import { 
+  encodeConnectionUrl, 
+  decodeConnectionUrl, 
+  copyToClipboard, 
+  readFromClipboard,
+  isValidConnectionUrl,
+  getRoleFromUrl
+} from "../../../shared/utils/index";
+import { 
+  PeerRole, 
+  WebRTCServiceConfig, 
+  ConnectionPhase,
+  ConnectionManagerCallbacks
+} from "../../../shared/types/index";
+
+/**
+ * Manages the complete P2P connection flow for screen sharing.
+ * Handle WebRTC service, URL encoding/decoding, and clipboard operations.
+ */
+export class ConnectionManager {
+  private webrtcService: WebRTCService | null = null;
+  private currentPhase: ConnectionPhase = ConnectionPhase.IDLE;
+  private role: PeerRole | null = null;
+  private username: string = "";
+  private callbacks: ConnectionManagerCallbacks = {};
+
+  /**
+   * Sets callback handlers for connection events
+   */
+  public setCallbacks(callbacks: ConnectionManagerCallbacks): void {
+    this.callbacks = { ...this.callbacks, ...callbacks };
+  }
+
+  /**
+   * Updates and notifies connection phase change
+   */
+  private setConnectionPhase(phase: ConnectionPhase): void {
+    this.currentPhase = phase;
+    log.info(`[ConnectionManager] State changed: ${phase}`);
+    this.callbacks.onPhaseChange?.(phase);
+  }
+
+  /**
+   * Handles errors
+   */
+  private handleError(message: string, error: unknown): void {
+    const errorMsg = error instanceof Error ? error : new Error(String(error));
+    log.error(`[ConnectionManager] ${message}:`, errorMsg);
+    this.setConnectionPhase(ConnectionPhase.ERROR);
+    this.callbacks.onError?.(errorMsg);
+  }
+
+  // ============== SHARER FLOW ==============
+
+  /**
+   * Initialize and create offer URL
+   * Called when user clicks "Start Sharing"
+   */
+  public async startSharing(
+    username: string, 
+    config?: Partial<WebRTCServiceConfig>
+  ): Promise<string | null> {
+
+    try {
+      this.setConnectionPhase(ConnectionPhase.INITIALIZING);
+      this.role = PeerRole.SCREEN_SHARER;
+      this.username = username;
+
+      // Create WebRTC service for sharer
+      const serviceConfig: WebRTCServiceConfig = {
+        isScreenSharer: true,
+        userConfig: {
+          username,
+          isMicrophoneEnabledOnConnect: config?.userConfig?.isMicrophoneEnabledOnConnect ?? false,
+        },
+        connectionConfig: config?.connectionConfig
+      };
+
+      this.webrtcService = new WebRTCService(serviceConfig);
+
+      // Setup connection state callback
+      this.webrtcService.onConnectionStateChange((state) => {
+        this.callbacks.onConnectionStateChange?.(state);
+        if (state === "connected") {
+          this.setConnectionPhase(ConnectionPhase.CONNECTED);
+        } else if (state === "disconnected" || state === "failed") {
+          this.setConnectionPhase(ConnectionPhase.DISCONNECTED);
+        }
+      });
+      
+      // Initialize screen captures, audio
+      await this.webrtcService.setup();
+
+      // Create offer
+      const offer = await this.webrtcService.createSharerOffer();
+
+      // Encode a WebRTC SessionDescription to URL
+      const offerUrl = await encodeConnectionUrl(PeerRole.SCREEN_SHARER, username, offer);
+
+      // Copy URL to clipboard
+      await copyToClipboard(offerUrl);
+
+      //Setup connetion step as offer-created
+      this.setConnectionPhase(ConnectionPhase.OFFER_CREATED);
+      this.callbacks.onUrlGenerated?.(offerUrl); 
+
+      log.info("[ConnectionManager] Offer URL created and copied to clipboard");
+      return offerUrl;
+    } catch (error) {
+      this.handleError("Failed to start sharing", error);
+      return null;
+    }
+  }
+
+  /**
+   * Accept answer URL from watcher
+   * Called when sharer pastes the answer URL
+   */
+  public async accepteAnswerUrl(): Promise<boolean> {
+    try {
+      if (!this.webrtcService || this.role !== PeerRole.SCREEN_SHARER) {
+        throw new Error("Not initialized as sharer");
+      }
+
+      this.setConnectionPhase(ConnectionPhase.CONNECTING);
+
+      // Read URL from clipboard
+      const url = await readFromClipboard();
+      if (!url) {
+        throw new Error("No URL in clipboard");
+      }
+
+      // Validate URL
+      if (!isValidConnectionUrl(url)) {
+        throw new Error("Invalid connection URL");
+      }
+
+      // Check it's an answer (from watcher)
+      const urlRole = getRoleFromUrl(url);
+      if (urlRole !== PeerRole.SCREEN_WATCHER) {
+        throw new Error("Expected answer URL from watcher, got offer URL");
+      }
+
+      // Decode URL
+      const decoded = await decodeConnectionUrl(url);
+      if (!decoded) {
+        throw new Error("Failed to decode answer URL");
+      }
+
+      // Accepte teh answer
+      await this.webrtcService.acceptAnswer(decoded.sdp);
+
+      log.info(`[ConnectionManager] Accepted answer from: ${decoded.username}`);
+      // Connection state will change to "connected" via callback
+      return true;
+    } catch (error) {
+      this.handleError("Failed to accept answer", error);
+      return false;
+    }
+  }
+
+  // ============== WATCHER FLOW ==============
+
+  /**
+   * Process offer URL and create answer
+   * Called when watcher pastes the offer URL
+   */
+  public async joinSession(
+    username: string, 
+    remoteVideo: HTMLVideoElement, 
+    config?: Partial<WebRTCServiceConfig>
+  ): Promise<string | null> {
+    try {
+      this.setConnectionPhase(ConnectionPhase.INITIALIZING);
+      this.role = PeerRole.SCREEN_WATCHER;
+      this.username = username;
+
+      // Read URL from clipboard
+      const url = await readFromClipboard();
+      if (!url) {
+        throw new Error("No URL in clipboard");
+      }
+
+      // Validate URL
+      if (!isValidConnectionUrl(url)) {
+        throw new Error("Invalid connection URL");
+      }
+
+      // Check it's an offer (from sharer)
+      const urlRole = getRoleFromUrl(url);
+      if (urlRole !== PeerRole.SCREEN_SHARER) {
+        throw new Error("Expected offer URL from sharer, got answer URL");
+      }
+
+      // Decode URL
+      const decoded = await decodeConnectionUrl(url);
+      if (!decoded) {
+        throw new Error("Failed to decode offer URL");
+      }
+
+      log.info(`[ConnectionManager] Joining session from: ${decoded.username}`);
+
+      // Create WebRTC service config for watcher
+      const serviceConfig: WebRTCServiceConfig = {
+        isScreenSharer: false,
+        remoteVideo: remoteVideo,
+        userConfig: {
+          username,
+          isMicrophoneEnabledOnConnect: config?.userConfig?.isMicrophoneEnabledOnConnect || false,
+        },
+        connectionConfig: config?.connectionConfig
+      };
+
+      this.webrtcService = new WebRTCService(serviceConfig);
+
+      // Initialize
+      await this.webrtcService.setup();
+
+      // Create answer from offer
+      const answer = await this.webrtcService.createWatcherAnswer(decoded.sdp);
+
+      // Encode answer URL
+      const answerUrl = await encodeConnectionUrl(PeerRole.SCREEN_WATCHER, username, answer);
+
+      // Copy to clipboard
+      await copyToClipboard(answerUrl);
+
+      this.setConnectionPhase(ConnectionPhase.ANSWER_CREATED);
+      this.callbacks.onUrlGenerated?.(answerUrl);
+
+      log.info("[ConnectionManager] Answer URL created and copied to clipboard");
+      return answerUrl;
+    } catch (error) {
+      this.handleError("Failed to join session", error);
+      return null;
+    }
+  }
+
+  // ============== COMMON METHODS ==============
+
+  /**
+   * Gets the current connection phase
+   */
+  public getCurrentPhase(): ConnectionPhase {
+    return this.currentPhase;
+  }
+
+  /**
+   * Gets the current role
+   */
+  public getRole(): PeerRole | null {
+    return this.role;
+  }
+
+  /**
+   * Gets the WebRTC service (for advanced usage)
+   */
+  public getWebRTCService(): WebRTCService | null {
+    return this.webrtcService;
+  }
+
+  /**
+   * Checks if connected
+   */
+  public isConnected(): boolean {
+    return this.webrtcService?.isConnected() ?? false;
+  }
+
+  /**
+   * Disconnects and cleans up
+   */
+  public async disconnect(): Promise<void> {
+    log.info("[ConnectionManager] Disconnecting...");
+
+    if (this.webrtcService) {
+      await this.webrtcService.disconnect();
+      this.webrtcService = null;
+    }
+
+    this.role = null;
+    this.username = "";
+    this.setConnectionPhase(ConnectionPhase.DISCONNECTED);
+
+    log.info("[ConnectionManager] Disconnected");
+  }
+
+  /**
+   * Resets to initial state
+   */
+  public reset(): void {
+    this.disconnect();
+    this.setConnectionPhase(ConnectionPhase.IDLE);
+    this.callbacks = {};
+  }
+}
+
+
