@@ -25,6 +25,7 @@ export class ConnectionManager {
   private role: PeerRole | null = null;
   private username: string = "";
   private callbacks: ConnectionManagerCallbacks = {};
+  private isOperationInProgress = false;
 
   /**
    * Sets callback handlers for connection events
@@ -37,6 +38,8 @@ export class ConnectionManager {
    * Updates and notifies connection phase change
    */
   private setConnectionPhase(phase: ConnectionPhase): void {
+    if (this.currentPhase === phase) return;
+    
     this.currentPhase = phase;
     log.info(`[ConnectionManager] State changed: ${phase}`);
     this.callbacks.onPhaseChange?.(phase);
@@ -52,6 +55,51 @@ export class ConnectionManager {
     this.callbacks.onError?.(errorMsg);
   }
 
+  /**
+   * 
+   */
+  private lock(): boolean {
+    if (this.isOperationInProgress) {
+      log.warn("[ConnectionManager] Operation in progress");
+      return false;
+    }
+    this.isOperationInProgress = true;
+    return true;
+  }
+
+  /**
+   * 
+   */
+  private unlock(): void {
+    this.isOperationInProgress = false;
+  }
+
+  /**
+   * Sets up WebRTC connection state callbacks
+   */
+  private setupConnectionStateCallbacks(): void {
+    if (!this.webrtcService) return;
+    this.webrtcService.onConnectionStateChange((state) => {
+      this.callbacks.onConnectionStateChange?.(state);
+
+      // Map ICE states to ConnectionPhase
+      switch (state) {
+        case "checking":
+          this.setConnectionPhase(ConnectionPhase.CONNECTING);
+          break;
+        case "connected":
+        case "completed":
+          this.setConnectionPhase(ConnectionPhase.CONNECTED);
+          break;
+        case "disconnected":
+        case "failed":
+        case "closed":
+          this.setConnectionPhase(ConnectionPhase.DISCONNECTED);
+          break;
+      }
+    });
+  }
+
   // ============== SHARER FLOW ==============
 
   /**
@@ -63,6 +111,7 @@ export class ConnectionManager {
     config?: Partial<WebRTCServiceConfig>
   ): Promise<string | null> {
 
+    if (!this.lock()) return null;
     try {
       this.setConnectionPhase(ConnectionPhase.INITIALIZING);
       this.role = PeerRole.SCREEN_SHARER;
@@ -81,14 +130,7 @@ export class ConnectionManager {
       this.webrtcService = new WebRTCService(serviceConfig);
 
       // Setup connection state callback
-      this.webrtcService.onConnectionStateChange((state) => {
-        this.callbacks.onConnectionStateChange?.(state);
-        if (state === "connected") {
-          this.setConnectionPhase(ConnectionPhase.CONNECTED);
-        } else if (state === "disconnected" || state === "failed") {
-          this.setConnectionPhase(ConnectionPhase.DISCONNECTED);
-        }
-      });
+      this.setupConnectionStateCallbacks();
       
       // Initialize screen captures, audio
       await this.webrtcService.setup();
@@ -104,6 +146,7 @@ export class ConnectionManager {
 
       //Setup connetion step as offer-created
       this.setConnectionPhase(ConnectionPhase.OFFER_CREATED);
+      this.setConnectionPhase(ConnectionPhase.WAITING_FOR_ANSWER);
       this.callbacks.onUrlGenerated?.(offerUrl); 
 
       log.info("[ConnectionManager] Offer URL created and copied to clipboard");
@@ -111,6 +154,8 @@ export class ConnectionManager {
     } catch (error) {
       this.handleError("Failed to start sharing", error);
       return null;
+    } finally {
+      this.unlock();
     }
   }
 
@@ -118,7 +163,8 @@ export class ConnectionManager {
    * Accept answer URL from watcher
    * Called when sharer pastes the answer URL
    */
-  public async accepteAnswerUrl(): Promise<boolean> {
+  public async acceptAnswerUrl(): Promise<boolean> {
+    if (!this.lock()) return false;
     try {
       if (!this.webrtcService || this.role !== PeerRole.SCREEN_SHARER) {
         throw new Error("Not initialized as sharer");
@@ -149,7 +195,7 @@ export class ConnectionManager {
         throw new Error("Failed to decode answer URL");
       }
 
-      // Accepte teh answer
+      // Accept teh answer
       await this.webrtcService.acceptAnswer(decoded.sdp);
 
       log.info(`[ConnectionManager] Accepted answer from: ${decoded.username}`);
@@ -158,6 +204,8 @@ export class ConnectionManager {
     } catch (error) {
       this.handleError("Failed to accept answer", error);
       return false;
+    } finally {
+      this.unlock();
     }
   }
 
@@ -172,6 +220,7 @@ export class ConnectionManager {
     remoteVideo: HTMLVideoElement, 
     config?: Partial<WebRTCServiceConfig>
   ): Promise<string | null> {
+    if (!this.lock()) return null;
     try {
       this.setConnectionPhase(ConnectionPhase.INITIALIZING);
       this.role = PeerRole.SCREEN_WATCHER;
@@ -215,6 +264,9 @@ export class ConnectionManager {
 
       this.webrtcService = new WebRTCService(serviceConfig);
 
+      // Call connection state callback
+      this.setupConnectionStateCallbacks();
+
       // Initialize
       await this.webrtcService.setup();
 
@@ -235,6 +287,8 @@ export class ConnectionManager {
     } catch (error) {
       this.handleError("Failed to join session", error);
       return null;
+    } finally {
+      this.unlock();
     }
   }
 
@@ -281,7 +335,11 @@ export class ConnectionManager {
 
     this.role = null;
     this.username = "";
-    this.setConnectionPhase(ConnectionPhase.DISCONNECTED);
+    
+    // Avoid to duplicate settings
+    if (this.currentPhase !== ConnectionPhase.DISCONNECTED) {
+      this.setConnectionPhase(ConnectionPhase.DISCONNECTED);
+    }
 
     log.info("[ConnectionManager] Disconnected");
   }
@@ -289,10 +347,11 @@ export class ConnectionManager {
   /**
    * Resets to initial state
    */
-  public reset(): void {
-    this.disconnect();
+  public async reset(): Promise<void> {
+    await this.disconnect();
     this.setConnectionPhase(ConnectionPhase.IDLE);
     this.callbacks = {};
+    this.isOperationInProgress = false;
   }
 }
 
