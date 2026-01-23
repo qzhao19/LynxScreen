@@ -125,7 +125,7 @@ export class WebRTCService {
       });
 
       // Set track receiving callback
-      this.connectionService.onTrack((stream: MediaStream) => {
+      this.connectionService.onRemoteStream((stream: MediaStream) => {
         // Set video source for watcher
         if (this.isWatcherConfig(this.config)) {
           this.config.remoteVideo.srcObject = stream;
@@ -344,10 +344,17 @@ export class WebRTCService {
   // ============== Connection State ==============
 
   /**
+   * Registers remote track callback (pass-through to PeerConnectionService)
+   */
+  public onRemoteStream(callback: (stream: MediaStream) => void): void {
+    this.connectionService.onRemoteStream(callback);
+  }
+
+  /**
    * Registers connection state change callback
    */
-  public onConnectionStateChange(callback: (state: RTCIceConnectionState) => void): void {
-    this.connectionService.onConnectionStateChange(callback);
+  public onIceConnectionStateChange(callback: (state: RTCIceConnectionState) => void): void {
+    this.connectionService.onIceConnectionStateChange(callback);
   }
 
   /**
