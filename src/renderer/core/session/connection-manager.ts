@@ -79,7 +79,9 @@ export class ConnectionManager {
    */
   private setupConnectionStateCallbacks(): void {
     if (!this.webrtcService) return;
-    this.webrtcService.onConnectionStateChange((state) => {
+
+    // Setup ICE step
+    this.webrtcService.onIceConnectionStateChange((state) => {
       this.callbacks.onConnectionStateChange?.(state);
 
       // Map ICE states to ConnectionPhase
@@ -97,6 +99,11 @@ export class ConnectionManager {
           this.setConnectionPhase(ConnectionPhase.DISCONNECTED);
           break;
       }
+    });
+
+    // Setup remote media stream
+    this.webrtcService.onRemoteStream?.((stream) => {
+      this.callbacks.onRemoteStream?.(stream);
     });
   }
 
@@ -153,6 +160,7 @@ export class ConnectionManager {
       return offerUrl;
     } catch (error) {
       this.handleError("Failed to start sharing", error);
+      await this.disconnect();
       return null;
     } finally {
       this.unlock();
