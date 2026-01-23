@@ -3,6 +3,14 @@ import { PeerRole } from "../types/index";
 import { URL_PROTOCOL } from "../constants/index";
 
 /**
+ * Encoding scheme prefix
+ */
+const ENCODING_PREFIX = {
+  GZIP: "gz:",
+  FALLBACK: "fb:",
+};
+
+/**
  * Converts standard Base64 to URL-safe format
  */
 const toUrlSafeBase64 = (base64: string) => {
@@ -47,6 +55,42 @@ function extractActionFromUrl(parsedUrl: URL): string {
 }
 
 /**
+ * Fallback compression algorithm
+ */
+function compressSdpFallback(sdp: string): string {
+  const base64 = btoa(encodeURIComponent(sdp));
+  const urlSafeBase64 = toUrlSafeBase64(base64);
+  return ENCODING_PREFIX.FALLBACK + urlSafeBase64;
+}
+
+/**
+ * Gzip compression algorithm
+ */
+async function compressSdpGzip(sdp: string): Promise<string> {
+  // Compress using gzip
+  const stream = new Blob([sdp], { type: "text/plain" }).stream();
+  const compressedStream = stream.pipeThrough(new CompressionStream("gzip"));
+  const compressedResponse = new Response(compressedStream);
+  const blob = await compressedResponse.blob();
+  const buffer = await blob.arrayBuffer();
+
+  if (buffer.byteLength > 100000) {
+    log.warn("[SignalingURL] Compressed data exceeds 100KB, URL may be too long");
+  }
+
+  // Convert to URL-safe base64
+  const uint8Array = new Uint8Array(buffer);
+  const binaryString = uint8ArrayToString(uint8Array);
+  const base64 = btoa(binaryString);
+  const urlSafeBase64 = toUrlSafeBase64(base64);
+
+  log.debug(`[SignalingURL] Compressed ${sdp.length} → ${buffer.byteLength} bytes.`);
+
+  return ENCODING_PREFIX.GZIP + urlSafeBase64;
+}
+
+
+/**
  * Compresses SDP string using gzip and returns URL-safe Base64
  * Falls back to simple Base64 encoding if CompressionStream is unavailable
  */
@@ -55,32 +99,12 @@ async function compressSdp(sdp: string): Promise<string> {
     if (typeof CompressionStream === "undefined") {
       throw new Error("CompressionStream not supported");
     }
-
-    // Compress using gzip
-    const stream = new Blob([sdp], { type: "text/plain" }).stream();
-    const compressedStream = stream.pipeThrough(new CompressionStream("gzip"));
-    const compressedResponse = new Response(compressedStream);
-    const blob = await compressedResponse.blob();
-    const buffer = await blob.arrayBuffer();
-
-    if (buffer.byteLength > 100000) {
-      log.warn("[SignalingURL] Compressed data exceeds 100KB, URL may be too long");
-    }
-
-    // Convert to URL-safe base64
-    const uint8Array = new Uint8Array(buffer);
-    const binaryString = uint8ArrayToString(uint8Array);
-    const base64 = btoa(binaryString);
-
-    log.debug(`[SignalingURL] Compressed ${sdp.length} → ${buffer.byteLength} bytes.`);
-
-    return toUrlSafeBase64(base64);
+    return await compressSdpGzip(sdp);
 
   } catch (error) {
     log.warn("[SignalingURL] Compression failed, using fallback encoding:", error);
     try {
-      const base64 = btoa(encodeURIComponent(sdp));
-      return toUrlSafeBase64(base64);
+      return compressSdpFallback(sdp);
     } catch (fallbackError) {
       log.error("[SignalingURL] Fallback encoding failed:", fallbackError);
       throw new Error("Failed to encode data");
@@ -89,38 +113,73 @@ async function compressSdp(sdp: string): Promise<string> {
 }
 
 /**
+ * Fallback decompression algorithm
+ */
+function decompressSdpFallback(token: string): string {
+  const standardBase64 = fromUrlSafeBase64(token);
+  const decoded = atob(standardBase64);
+  return decodeURIComponent(decoded);
+}
+
+/**
+ * Gzip decompression algorithm
+ */
+async function decompressSdpGzip(token: string): Promise<string> {
+  const standardBase64 = fromUrlSafeBase64(token);
+  const binaryString = atob(standardBase64);
+  const uint8Array = Uint8Array.from(binaryString, char => char.charCodeAt(0));
+  const buffer = uint8Array.buffer;
+
+  if (typeof DecompressionStream === "undefined") {
+    throw new Error("DecompressionStream not supported");
+  }
+
+  const stream = new Blob([buffer]).stream();
+  const decompressedStream = stream.pipeThrough(new DecompressionStream("gzip"));
+  const decompressedResponse = new Response(decompressedStream);
+  const result = await decompressedResponse.text();
+  
+  log.debug(`[SignalingURL] Gzip decompressed ${buffer.byteLength} → ${result.length} bytes`);
+  return result;
+}
+
+/**
  * Decompresses URL-safe Base64 SDP string
  */
 async function decompressSdp(token: string): Promise<string> {
-  try {
-    // Convert to standard base64 string
-    const standardBase64 = fromUrlSafeBase64(token);
-    const binaryString = atob(standardBase64);
-    const uint8Array = Uint8Array.from(binaryString, char => char.charCodeAt(0));
-    const buffer = uint8Array.buffer;
 
-    // Check if DecompressionStream exists
-    if (typeof DecompressionStream === "undefined") {
-      throw new Error("DecompressionStream not supported");
-    }
-
-    // Decompress standard base64 string
-    const stream = new Blob([buffer]).stream();
-    const decompressedStream = stream.pipeThrough(new DecompressionStream("gzip"));
-    const decompressedResponse = new Response(decompressedStream);
-    const result = await decompressedResponse.text();
-    log.debug(`[SignalingURL] Decompressed SDP ${buffer.byteLength} → ${result.length} bytes`);
-    return result;
-  } catch (error) {
-    log.warn("[SignalingURL] SDP decompression failed, trying fallback:", error);
+  // Check for Gzip prefix
+  if (token.startsWith(ENCODING_PREFIX.GZIP)) {
     try {
-      const standardBase64 = fromUrlSafeBase64(token);
-      return decodeURIComponent(atob(standardBase64));
-    } catch (fallbackError) {
-      log.error("[SignalingURL] SDP fallback decoding failed:", fallbackError);
-      throw new Error("Failed to decode SDP");
+      return await decompressSdpGzip(token.slice(ENCODING_PREFIX.GZIP.length));
+    } catch (error) {
+      log.error("[SignalingURL] Explicit Gzip decompression failed:", error);
+      throw error;
     }
-  } 
+  }
+
+  // Check for Fallback prefix
+  if (token.startsWith(ENCODING_PREFIX.FALLBACK)) {
+    try {
+      return decompressSdpFallback(token.slice(ENCODING_PREFIX.FALLBACK.length));
+    } catch (error) {
+      log.error("[SignalingURL] Explicit Fallback decoding failed:", error);
+      throw error;
+    }
+  }
+
+  // Auto-detect decompression
+  try {
+    return await decompressSdpGzip(token);
+  } catch {
+    // Gzip failed, try fallback
+    try {
+      return decompressSdpFallback(token);
+    } catch (error) {
+      log.error("[SignalingURL] Auto-detection failed:", error);
+      throw new Error("Failed to decode SDP (auto-detect)");
+    }
+  }
 }
 
 /**
@@ -149,6 +208,7 @@ export async function encodeConnectionUrl(
   const url = new URL(`${URL_PROTOCOL}${action}`);
   url.searchParams.set("username", encodeURIComponent(username));
   url.searchParams.set("token", compressedSdp);
+  url.searchParams.set("type", sdp.type);
 
   const finalUrl = url.toString();
   log.info(`[SignalingURL] Generated ${action} URL (${finalUrl.length} characters)`);
@@ -199,10 +259,19 @@ export async function decodeConnectionUrl(url: string): Promise<{
       return null;
     }
 
+    // Check SDP type should be aligned with role
+    const sdpType = parsedUrl.searchParams.get("type") as RTCSdpType | null;
+    const expectedSdpType = role === PeerRole.SCREEN_SHARER ? "offer" : "answer";
+
+    if (!sdpType || (sdpType && sdpType !== expectedSdpType)) {
+      log.error("[SignalingURL] SDP type mismatch with role");
+      return null;
+    }
+
     // Decompress SDP
     const sdpString = await decompressSdp(compressedSdp);
     const sdp: RTCSessionDescriptionInit = {
-      type: role === PeerRole.SCREEN_SHARER ? "offer" : "answer",
+      type: sdpType,
       sdp: sdpString,
     };
 
