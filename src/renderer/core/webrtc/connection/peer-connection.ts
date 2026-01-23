@@ -13,8 +13,8 @@ export class PeerConnectionService {
   private config: WebRTCConnectionConfig;
   private dataChannelService: DataChannelService;
 
-  private onConnectionStateChangeCallback?: (state: RTCIceConnectionState) => void;
-  private onTrackCallback?: (stream: MediaStream) => void;
+  private onIceConnectionStateChangeCallback?: (state: RTCIceConnectionState) => void;
+  private onRemoteStreamCallback?: (stream: MediaStream) => void;
 
   /**
    * Creates a new PeerConnectionService instance.
@@ -53,7 +53,7 @@ export class PeerConnectionService {
     this.pc.ontrack = (event: RTCTrackEvent): void => {
       log.info(`Received remote track: ${event.track.kind}`);
       if (event.streams && event.streams[0]) {
-        this.onTrackCallback?.(event.streams[0]);
+        this.onRemoteStreamCallback?.(event.streams[0]);
       }
     };
 
@@ -71,7 +71,7 @@ export class PeerConnectionService {
       if (this.pc) {
         const state = this.pc.iceConnectionState;
         log.info(`ICE connection state changed: ${state}`);
-        this.onConnectionStateChangeCallback?.(state);
+        this.onIceConnectionStateChangeCallback?.(state);
       }
     };
 
@@ -289,8 +289,8 @@ export class PeerConnectionService {
    * 
    * @param callback - Function to call when connection state changes.
    */
-  public onConnectionStateChange(callback: (state: RTCIceConnectionState) => void): void {
-    this.onConnectionStateChangeCallback = callback;
+  public onIceConnectionStateChange(callback: (state: RTCIceConnectionState) => void): void {
+    this.onIceConnectionStateChangeCallback = callback;
   }
 
   /**
@@ -298,8 +298,8 @@ export class PeerConnectionService {
    * 
    * @param callback - Function to call when a remote track is received.
    */
-  public onTrack(callback: (stream: MediaStream) => void): void {
-    this.onTrackCallback = callback;
+  public onRemoteStream(callback: (stream: MediaStream) => void): void {
+    this.onRemoteStreamCallback = callback;
   }
 
   /**
@@ -366,8 +366,8 @@ export class PeerConnectionService {
   public cleanup(): void {
     this.close();
     this.dataChannelService.cleanup();
-    this.onConnectionStateChangeCallback = undefined;
-    this.onTrackCallback = undefined;
+    this.onIceConnectionStateChangeCallback = undefined;
+    this.onRemoteStreamCallback = undefined;
 
     log.info("Connection service cleaned up");
   }
