@@ -160,7 +160,7 @@ export class PeerConnectionService {
     this.pc = new RTCPeerConnection({
       iceServers: this.config.iceServers.map((server) => ({
         urls: server.urls,
-        authUsername: server.authUsername,
+        username: server.authUsername,
         credential: server.credential
       }))
     });
