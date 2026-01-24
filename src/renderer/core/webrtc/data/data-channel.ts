@@ -62,9 +62,11 @@ export class DataChannelService {
       this.cursorPositionsChannel = channel;
       channel.onmessage = (msg: MessageEvent): void => {
         if (!this.cursorsEnabled) return;
-        // Server should receive, parse, and trigger a callback.
-        // Watcher should NOT receive cursor updates
-        if (!this.isScreenSharer) return;
+        // Sharer should send cursor updates.
+        // Watcher should receive cursor updates, parse, and trigger a callback.
+        // If it is a Sharer, do not process the received message (return directly).
+        // Only Watchers (isScreenSharer=false) will continue executing callback logic.
+        if (this.isScreenSharer) return;
         if (!this.onCursorUpdateCallback) return;
         try {
           const data = JSON.parse(msg.data) as RemoteCursorState;
@@ -79,7 +81,7 @@ export class DataChannelService {
       this.cursorPingChannel = channel;
       channel.onmessage = (msg: MessageEvent): void => {
         if (!this.cursorsEnabled) return;
-        if (!this.isScreenSharer) return;
+        if (this.isScreenSharer) return;
         this.onCursorPingCallback?.(msg.data);
       };
     }
