@@ -39,7 +39,6 @@ export class ConnectionManager {
    */
   private setConnectionPhase(phase: ConnectionPhase): void {
     if (this.currentPhase === phase) return;
-    
     this.currentPhase = phase;
     log.info(`[ConnectionManager] State changed: ${phase}`);
     this.callbacks.onPhaseChange?.(phase);
@@ -56,9 +55,9 @@ export class ConnectionManager {
   }
 
   /**
-   * 
+   * Acquires the operation lock to prevent concurrent async operations
    */
-  private lock(): boolean {
+  private acquireOperationLock(): boolean {
     if (this.isOperationInProgress) {
       log.warn("[ConnectionManager] Operation in progress");
       return false;
@@ -68,23 +67,21 @@ export class ConnectionManager {
   }
 
   /**
-   * 
+   * Releases the operation lock after async operation completes
    */
-  private unlock(): void {
+  private releaseOperationLock(): void {
     this.isOperationInProgress = false;
   }
 
   /**
    * Sets up WebRTC connection state callbacks
    */
-  private setupConnectionStateCallbacks(): void {
+  private setupServiceCallbacks(): void {
     if (!this.webrtcService) return;
 
     // Setup ICE step
     this.webrtcService.onIceConnectionStateChange((state) => {
-      this.callbacks.onConnectionStateChange?.(state);
-
-      // Map ICE states to ConnectionPhase
+      this.callbacks.onIceConnectionStateChange?.(state);
       switch (state) {
         case "checking":
           this.setConnectionPhase(ConnectionPhase.CONNECTING);
@@ -96,13 +93,16 @@ export class ConnectionManager {
         case "disconnected":
         case "failed":
         case "closed":
-          this.setConnectionPhase(ConnectionPhase.DISCONNECTED);
+          if (this.currentPhase === ConnectionPhase.CONNECTED ||
+              this.currentPhase === ConnectionPhase.CONNECTING) {
+            this.setConnectionPhase(ConnectionPhase.DISCONNECTED);
+          }
           break;
       }
     });
 
-    // Setup remote media stream
-    this.webrtcService.onRemoteStream?.((stream) => {
+    // Setup remote media stream callback
+    this.webrtcService.onRemoteStream((stream) => {
       this.callbacks.onRemoteStream?.(stream);
     });
   }
@@ -118,7 +118,7 @@ export class ConnectionManager {
     config?: Partial<WebRTCServiceConfig>
   ): Promise<string | null> {
 
-    if (!this.lock()) return null;
+    if (!this.acquireOperationLock()) return null;
     try {
       this.setConnectionPhase(ConnectionPhase.INITIALIZING);
       this.role = PeerRole.SCREEN_SHARER;
@@ -137,7 +137,7 @@ export class ConnectionManager {
       this.webrtcService = new WebRTCService(serviceConfig);
 
       // Setup connection state callback
-      this.setupConnectionStateCallbacks();
+      this.setupServiceCallbacks();
       
       // Initialize screen captures, audio
       await this.webrtcService.setup();
@@ -163,7 +163,7 @@ export class ConnectionManager {
       await this.disconnect();
       return null;
     } finally {
-      this.unlock();
+      this.releaseOperationLock();
     }
   }
 
@@ -172,7 +172,7 @@ export class ConnectionManager {
    * Called when sharer pastes the answer URL
    */
   public async acceptAnswerUrl(): Promise<boolean> {
-    if (!this.lock()) return false;
+    if (!this.acquireOperationLock()) return false;
     try {
       if (!this.webrtcService || this.role !== PeerRole.SCREEN_SHARER) {
         throw new Error("Not initialized as sharer");
@@ -213,7 +213,7 @@ export class ConnectionManager {
       this.handleError("Failed to accept answer", error);
       return false;
     } finally {
-      this.unlock();
+      this.releaseOperationLock();
     }
   }
 
@@ -228,7 +228,7 @@ export class ConnectionManager {
     remoteVideo: HTMLVideoElement, 
     config?: Partial<WebRTCServiceConfig>
   ): Promise<string | null> {
-    if (!this.lock()) return null;
+    if (!this.acquireOperationLock()) return null;
     try {
       this.setConnectionPhase(ConnectionPhase.INITIALIZING);
       this.role = PeerRole.SCREEN_WATCHER;
@@ -273,7 +273,7 @@ export class ConnectionManager {
       this.webrtcService = new WebRTCService(serviceConfig);
 
       // Call connection state callback
-      this.setupConnectionStateCallbacks();
+      this.setupServiceCallbacks();
 
       // Initialize
       await this.webrtcService.setup();
@@ -296,7 +296,7 @@ export class ConnectionManager {
       this.handleError("Failed to join session", error);
       return null;
     } finally {
-      this.unlock();
+      this.releaseOperationLock();
     }
   }
 
