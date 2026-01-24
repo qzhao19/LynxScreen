@@ -20,7 +20,7 @@ export enum ConnectionPhase {
 export interface ConnectionManagerCallbacks {
   onPhaseChange?: (step: ConnectionPhase) => void;
   onUrlGenerated?: (url: string) => void;
-  onConnectionStateChange?: (state: RTCIceConnectionState) => void;
+  onIceConnectionStateChange?: (state: RTCIceConnectionState) => void;
   onError?: (error: Error) => void;
   onRemoteStream?: (stream: MediaStream) => void; 
 };
