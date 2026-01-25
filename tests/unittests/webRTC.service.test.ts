@@ -215,7 +215,7 @@ describe("WebRTCService", () => {
 
   describe("setup", () => {
     it("should initialize service as screen sharer", async () => {
-      await service.setup();
+      await service.initialize();
 
       expect(service.isServiceInitialized()).toBe(true);
       expect(RTCPeerConnection).toHaveBeenCalled();
@@ -236,7 +236,7 @@ describe("WebRTCService", () => {
       // };
       const watcherService = new WebRTCService(mockWatcherConfig);
 
-      await watcherService.setup();
+      await watcherService.initialize();
 
       expect(watcherService.isServiceInitialized()).toBe(true);
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled();
@@ -244,7 +244,7 @@ describe("WebRTCService", () => {
     });
 
     it("should create audio element", async () => {
-      await service.setup();
+      await service.initialize();
 
       expect(document.createElement).toHaveBeenCalledWith("audio");
       expect(document.body.appendChild).toHaveBeenCalled();
@@ -253,7 +253,7 @@ describe("WebRTCService", () => {
     it("should handle audio permission denial gracefully", async () => {
       (navigator.mediaDevices.getUserMedia as any).mockRejectedValue(new Error("Permission denied"));
 
-      await service.setup();
+      await service.initialize();
 
       expect(service.isServiceInitialized()).toBe(true);
     });
@@ -261,7 +261,7 @@ describe("WebRTCService", () => {
     it("should handle display capture failure gracefully", async () => {
       (navigator.mediaDevices.getDisplayMedia as any).mockRejectedValue(new Error("Permission denied"));
 
-      await service.setup();
+      await service.initialize();
 
       expect(service.isServiceInitialized()).toBe(true);
     });
@@ -269,7 +269,7 @@ describe("WebRTCService", () => {
 
   describe("createSharerOffer", () => {
     it("should create offer and data channels", async () => {
-      await service.setup();
+      await service.initialize();
 
       const offer = await service.createSharerOffer();
 
@@ -292,7 +292,7 @@ describe("WebRTCService", () => {
       //   isScreenSharer: false
       // };
       const watcherService = new WebRTCService(mockWatcherConfig);
-      await watcherService.setup();
+      await watcherService.initialize();
 
       const offer = createMockRTCSessionDescription("offer");
       const answer = await watcherService.createWatcherAnswer(offer);
@@ -318,7 +318,7 @@ describe("WebRTCService", () => {
 
   describe("acceptAnswer", () => {
     it("should accept remote answer", async () => {
-      await service.setup();
+      await service.initialize();
       await service.createSharerOffer();
 
       const answer = createMockRTCSessionDescription("answer");
@@ -338,7 +338,7 @@ describe("WebRTCService", () => {
 
   describe("media control", () => {
     beforeEach(async () => {
-      await service.setup();
+      await service.initialize();
     });
 
     describe("toggleMicrophone", () => {
@@ -396,7 +396,7 @@ describe("WebRTCService", () => {
 
   describe("cursor control", () => {
     beforeEach(async () => {
-      await service.setup();
+      await service.initialize();
     });
 
     describe("updateRemoteCursor", () => {
@@ -466,13 +466,13 @@ describe("WebRTCService", () => {
 
   describe("connection state", () => {
     beforeEach(async () => {
-      await service.setup();
+      await service.initialize();
     });
 
     describe("onConnectionStateChange", () => {
       it("should register connection state callback", () => {
         const callback = vi.fn();
-        expect(() => service.onConnectionStateChange(callback)).not.toThrow();
+        expect(() => service.onIceConnectionStateChange(callback)).not.toThrow();
       });
     });
 
@@ -508,7 +508,7 @@ describe("WebRTCService", () => {
   describe("lifecycle", () => {
     describe("disconnect", () => {
       it("should disconnect and cleanup resources", async () => {
-        await service.setup();
+        await service.initialize();
 
         await service.disconnect();
 
@@ -518,7 +518,7 @@ describe("WebRTCService", () => {
 
       it("should clear video element srcObject for watcher", async () => {
         const watcherService = new WebRTCService(mockWatcherConfig);
-        await watcherService.setup();
+        await watcherService.initialize();
         mockVideoElement.srcObject = {} as MediaStream;
 
         await watcherService.disconnect();
@@ -537,12 +537,12 @@ describe("WebRTCService", () => {
       });
 
       it("should return true after setup", async () => {
-        await service.setup();
+        await service.initialize();
         expect(service.isServiceInitialized()).toBe(true);
       });
 
       it("should return false after disconnect", async () => {
-        await service.setup();
+        await service.initialize();
         await service.disconnect();
         expect(service.isServiceInitialized()).toBe(false);
       });
@@ -586,7 +586,7 @@ describe("WebRTCService", () => {
   describe("track handling", () => {
     it("should set remote video srcObject when track is received", async () => {
       const watcherService = new WebRTCService(mockWatcherConfig);
-      await watcherService.setup();
+      await watcherService.initialize();
 
       // Get the peer connection and trigger ontrack
       const pc = (watcherService as any).connectionService.getPeerConnection();
@@ -610,7 +610,7 @@ describe("WebRTCService", () => {
       (navigator.mediaDevices.getDisplayMedia as any).mockRejectedValue(new Error("Not allowed"));
 
       // Should not throw, but initialize with limitations
-      await service.setup();
+      await service.initialize();
       expect(service.isServiceInitialized()).toBe(true);
     });
 
@@ -627,14 +627,14 @@ describe("WebRTCService", () => {
     // });
 
     it("should handle multiple setup calls", async () => {
-      await service.setup();
-      await service.setup();
+      await service.initialize();
+      await service.initialize();
 
       expect(service.isServiceInitialized()).toBe(true);
     });
 
     it("should handle multiple disconnect calls", async () => {
-      await service.setup();
+      await service.initialize();
       await service.disconnect();
       await service.disconnect();
 
