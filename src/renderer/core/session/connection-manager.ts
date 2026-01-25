@@ -140,7 +140,7 @@ export class ConnectionManager {
       this.setupServiceCallbacks();
       
       // Initialize screen captures, audio
-      await this.webrtcService.setup();
+      await this.webrtcService.initialize();
 
       // Create offer
       const offer = await this.webrtcService.createSharerOffer();
@@ -276,7 +276,7 @@ export class ConnectionManager {
       this.setupServiceCallbacks();
 
       // Initialize
-      await this.webrtcService.setup();
+      await this.webrtcService.initialize();
 
       // Create answer from offer
       const answer = await this.webrtcService.createWatcherAnswer(decoded.sdp);

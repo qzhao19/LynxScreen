@@ -110,7 +110,7 @@ export class WebRTCService {
   /**
    * Initializes the WebRTC service
    */
-  public async setup(): Promise<void> {
+  public async initialize(): Promise<void> {
     try {
       // Initialize connection
       await this.connectionService.initialize();
@@ -121,7 +121,7 @@ export class WebRTCService {
        // Notify when user stops screen sharing
       this.mediaService.onDisplayEnd(() => {
         log.warn("Display stream ended by user");
-        void this.disconnect(); // best-effort cleanup
+        this.disconnect(); // Cleanup
       });
 
       // Set track receiving callback

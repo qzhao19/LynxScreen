@@ -1,6 +1,6 @@
 import log from "electron-log";
 import { WebRTCConnectionConfig } from "../../../../shared/types/index";
-import { DataChannelService } from "../data/data-channel";
+import { DataChannelService } from "../data/index";
 
 /**
  * Service for managing WebRTC peer connection lifecycle.
