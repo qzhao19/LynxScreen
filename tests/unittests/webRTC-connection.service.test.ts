@@ -343,13 +343,13 @@ describe("WebRTCConnectionService", () => {
     });
   });
 
-  describe("onConnectionStateChange", () => {
+  describe("onIceConnectionStateChange", () => {
     it("should register callback for connection state changes", async () => {
       const callback = vi.fn();
-      service.onConnectionStateChange(callback);
+      service.onIceConnectionStateChange(callback);
 
       await service.initialize();
-      service.onConnectionStateChange(callback); // Move after initialize
+      service.onIceConnectionStateChange(callback); // Move after initialize
 
       const pc = service.getPeerConnection();
       const handler = pc?.oniceconnectionstatechange as (() => void) | null;
@@ -359,13 +359,13 @@ describe("WebRTCConnectionService", () => {
     });
   });
 
-  describe("onTrack", () => {
+  describe("onRemoteStream", () => {
     it("should register callback for receiving tracks", async () => {
       const callback = vi.fn();
-      service.onTrack(callback);
+      service.onRemoteStream(callback);
 
       await service.initialize();
-      service.onTrack(callback); // Move after initialize
+      service.onRemoteStream(callback); // Move after initialize
 
       const pc = service.getPeerConnection();
       const mockStream = {} as MediaStream;
@@ -380,7 +380,7 @@ describe("WebRTCConnectionService", () => {
 
     it("should not call callback if no streams in track event", async () => {
       const callback = vi.fn();
-      service.onTrack(callback);
+      service.onRemoteStream(callback);
 
       await service.initialize();
 
@@ -491,8 +491,8 @@ describe("WebRTCConnectionService", () => {
     it("should clear callbacks on cleanup", async () => {
       const stateCallback = vi.fn();
       const trackCallback = vi.fn();
-      service.onConnectionStateChange(stateCallback);
-      service.onTrack(trackCallback);
+      service.onIceConnectionStateChange(stateCallback);
+      service.onRemoteStream(trackCallback);
 
       await service.initialize();
       service.cleanup();
