@@ -1,7 +1,7 @@
 import type { 
   WebRTCConnectionConfig, 
   WebRTCUserConfig, 
-} from "./webrtc-shared";
+} from "../../../shared/types/webrtc-shared";
 
 /**
  * Enum defining the names of WebRTC data channels used for screen sharing communication.
