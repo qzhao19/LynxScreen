@@ -10,10 +10,10 @@ import {
 } from "../../../shared/utils/index";
 import { 
   PeerRole, 
-  WebRTCServiceConfig, 
   ConnectionPhase,
   ConnectionManagerCallbacks
 } from "../../../shared/types/index";
+import { WebRTCServiceConfig } from "../../shared/types/index";
 
 /**
  * Manages the complete P2P connection flow for screen sharing.
