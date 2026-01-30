@@ -1,19 +1,27 @@
 :root {
-  /* Colors */
-  --color-bg-primary: #ffffff;
-  --color-bg-secondary: #cbcdd1;
-  --color-bg-card: rgba(255, 255, 255, 0.05);
-  --color-bg-hover: rgba(255, 255, 255, 0.1);
+  /* Background color */
+  --color-bg-primary: #0f1729;
+  --color-bg-secondary: #1a2744;
+  --color-bg-card: rgba(30, 41, 59, 0.8);
+  --color-bg-card-hover: rgba(40, 51, 69, 0.9);
+  --color-bg-input: rgba(15, 23, 42, 0.6);
   
-  --color-text-primary: #0f0e0e;
-  --color-text-secondary: #0a0909;
-  --color-text-muted: #1b1e25;
+  /* Text color */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
   
-  --color-accent-blue: #4a9eff;
-  --color-accent-purple: #8b5cf6;
+  /* Theme color */
   --color-accent-green: #10b981;
+  --color-accent-green-hover: #059669;
+  --color-accent-blue: #3b82f6;
+  --color-accent-blue-hover: #2563eb;
   --color-accent-red: #ef4444;
-  --color-accent-yellow: #f59e0b;
+  --color-accent-red-hover: #dc2626;
+  
+  /* Border color */
+  --color-border: rgba(148, 163, 184, 0.2);
+  --color-border-focus: var(--color-accent-green);
   
   /* Spacing */
   --spacing-xs: 0.25rem;
@@ -21,8 +29,9 @@
   --spacing-md: 1rem;
   --spacing-lg: 1.5rem;
   --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
   
-  /* Border Radius */
+  /* Border radius */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -33,6 +42,10 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.2s ease;
   --transition-slow: 0.3s ease;
+  
+  /* Shawer */
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 * {
@@ -42,18 +55,39 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-  background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-primary) 100%);
   color: var(--color-text-primary);
   min-height: 100vh;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button {
   font-family: inherit;
+  cursor: pointer;
 }
 
 input {
   font-family: inherit;
+}
+
+/* Scrollbar style */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-text-muted);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
 }
