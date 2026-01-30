@@ -1,3 +1,4 @@
+import { IceServerConfig } from "./webrtc-shared";
 
 /**
  * Application settings configured by the user.
@@ -7,8 +8,6 @@
  *
  * @interface AppSettings
  * @property {string} username - The display name of the local user in the application.
- * @property {string} color - The preferred UI theme color (e.g., "#FF5733", "blue").
- * @property {string} language - The preferred UI language locale code (e.g., "en", "zh-CN", "es").
  * @property {boolean} isMicrophoneEnabledOnConnect - Whether to automatically enable the microphone
  *                                                     when establishing a connection.
  * @property {IceServerConfig[]} iceServers - An array of ICE server configurations used for establishing
@@ -16,8 +15,7 @@
  */
 export interface AppSettings {
   username: string
-  color: string
-  language: string
   isMicrophoneEnabledOnConnect: boolean
+  iceServers: IceServerConfig[];
 }
 
