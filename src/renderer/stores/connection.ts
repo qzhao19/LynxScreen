@@ -1,6 +1,5 @@
 import { writable, derived } from "svelte/store";
-import { ConnectionPhase, PeerRole } from "@/shared/types";
-import { RemoteCursorState } from "@/shared/types";
+import { ConnectionPhase, PeerRole, RemoteCursorState } from "../../shared/types/index";
 
 // Connection state
 export const connectionPhase = writable<ConnectionPhase>(ConnectionPhase.IDLE);
