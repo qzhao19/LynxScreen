@@ -3,7 +3,8 @@ import { ConnectionManager } from "../../src/renderer/core/session/connection-ma
 import { 
   PeerRole, 
   ConnectionPhase,
-  ConnectionManagerCallbacks 
+  ConnectionManagerCallbacks,
+  RemoteCursorState
 } from "../../src/shared/types/index";
 
 // Mock electron-log
@@ -37,14 +38,42 @@ globalThis.MediaStream = MockMediaStream as any;
 
 function createMockWebRTCService() {
   return {
-    setup: vi.fn().mockResolvedValue(undefined),
+    initialize: vi.fn().mockResolvedValue(undefined),
     createSharerOffer: vi.fn(),
     createWatcherAnswer: vi.fn(),
     acceptAnswer: vi.fn().mockResolvedValue(undefined),
     disconnect: vi.fn().mockResolvedValue(undefined),
     isConnected: vi.fn().mockReturnValue(false),
     onIceConnectionStateChange: vi.fn(),
-    onRemoteStream: vi.fn()
+    onRemoteStream: vi.fn(),
+    // Cursor control methods
+    updateRemoteCursor: vi.fn().mockReturnValue(true),
+    onCursorUpdate: vi.fn(),
+    toggleRemoteCursors: vi.fn().mockReturnValue(true),
+    isCursorsEnabled: vi.fn().mockReturnValue(false),
+    areDataChannelsReady: vi.fn().mockReturnValue(false),
+    // New cursor channel methods
+    isCursorPositionsChannelReady: vi.fn().mockReturnValue(false),
+    isCursorPingChannelReady: vi.fn().mockReturnValue(false),
+    onChannelOpen: vi.fn(),
+    onChannelClose: vi.fn(),
+    // Media control methods
+    toggleMicrophone: vi.fn().mockReturnValue(true),
+    setMicrophoneEnabled: vi.fn(),
+    toggleDisplayStream: vi.fn().mockReturnValue(true),
+    setDisplayStreamEnabled: vi.fn(),
+    isMicrophoneActive: vi.fn().mockReturnValue(false),
+    hasAudioInput: vi.fn().mockReturnValue(false),
+    getAudioStream: vi.fn().mockReturnValue(null),
+    getDisplayStream: vi.fn().mockReturnValue(null),
+    isDisplayStreamActive: vi.fn().mockReturnValue(false),
+    isDisplayActive: vi.fn().mockReturnValue(false),
+    // Connection state methods
+    getConnectionState: vi.fn().mockReturnValue(null),
+    getIceConnectionState: vi.fn().mockReturnValue(null),
+    isServiceInitialized: vi.fn().mockReturnValue(false),
+    isScreenSharer: vi.fn().mockReturnValue(false),
+    isScreenWatcher: vi.fn().mockReturnValue(false)
   };
 }
 
@@ -84,6 +113,8 @@ describe("ConnectionManager", () => {
   let connectionManager: ConnectionManager;
   let mockCallbacks: ConnectionManagerCallbacks;
   let mockVideoElement: HTMLVideoElement;
+  let mockCursorData: RemoteCursorState;
+
 
   const mockOffer: RTCSessionDescriptionInit = {
     type: "offer",
@@ -98,13 +129,26 @@ describe("ConnectionManager", () => {
   const mockOfferUrl = "lynxscreen://share?username=sharer&token=gz:abc123&type=offer";
   const mockAnswerUrl = "lynxscreen://watch?username=watcher&token=gz:def456&type=answer";
 
-  beforeEach(() => {
-    mockWebRTCServiceInstance = createMockWebRTCService();
-    
+  const setupCursorMocks = () => {
+    mockWebRTCServiceInstance = {
+      ...createMockWebRTCService(),
+      updateRemoteCursor: vi.fn().mockReturnValue(true),
+      onCursorUpdate: vi.fn(),
+      toggleRemoteCursors: vi.fn().mockReturnValue(true),
+      isCursorsEnabled: vi.fn().mockReturnValue(false),
+      areDataChannelsReady: vi.fn().mockReturnValue(false)
+    };
     mockWebRTCServiceInstance.createSharerOffer.mockResolvedValue(mockOffer);
     mockWebRTCServiceInstance.createWatcherAnswer.mockResolvedValue(mockAnswer);
+    connectionManager.setCallbacks(mockCallbacks);
+  };
 
+  beforeEach(() => {
     vi.clearAllMocks();
+
+    mockWebRTCServiceInstance = createMockWebRTCService();
+    mockWebRTCServiceInstance.createSharerOffer.mockResolvedValue(mockOffer);
+    mockWebRTCServiceInstance.createWatcherAnswer.mockResolvedValue(mockAnswer);
 
     (encodeConnectionUrl as Mock).mockResolvedValue(mockOfferUrl);
     (copyToClipboard as Mock).mockResolvedValue(undefined);
@@ -130,6 +174,14 @@ describe("ConnectionManager", () => {
     mockVideoElement = {
       srcObject: null
     } as unknown as HTMLVideoElement;
+
+    mockCursorData = {
+      id: "cursor-123",
+      name: "TestUser",
+      color: "#FF5733",
+      x: 0.5,
+      y: 0.5
+    };
   });
 
   afterEach(() => {
@@ -193,7 +245,7 @@ describe("ConnectionManager", () => {
           })
         })
       );
-      expect(mockWebRTCServiceInstance.setup).toHaveBeenCalled();
+      expect(mockWebRTCServiceInstance.initialize).toHaveBeenCalled();
       expect(mockWebRTCServiceInstance.createSharerOffer).toHaveBeenCalled();
       expect(encodeConnectionUrl).toHaveBeenCalledWith(
         PeerRole.SCREEN_SHARER,
@@ -247,13 +299,14 @@ describe("ConnectionManager", () => {
     });
 
     it("should handle WebRTC setup failure", async () => {
-      mockWebRTCServiceInstance.setup.mockRejectedValue(new Error("Setup failed"));
+    mockWebRTCServiceInstance.initialize.mockRejectedValue(new Error("Setup failed"));
 
-      const result = await connectionManager.startSharing("TestSharer");
+    const result = await connectionManager.startSharing("TestSharer");
 
-      expect(result).toBeNull();
-      expect(mockCallbacks.onError).toHaveBeenCalled();
-      expect(mockCallbacks.onPhaseChange).toHaveBeenCalledWith(ConnectionPhase.ERROR);
+    expect(result).toBeNull();
+    expect(mockCallbacks.onError).toHaveBeenCalled();
+    expect(mockCallbacks.onPhaseChange).toHaveBeenCalledWith(ConnectionPhase.ERROR);
+
     });
 
     it("should handle offer creation failure", async () => {
@@ -439,7 +492,7 @@ describe("ConnectionManager", () => {
           })
         })
       );
-      expect(mockWebRTCServiceInstance.setup).toHaveBeenCalled();
+      expect(mockWebRTCServiceInstance.initialize).toHaveBeenCalled();
       expect(mockWebRTCServiceInstance.createWatcherAnswer).toHaveBeenCalledWith(mockOffer);
       expect(encodeConnectionUrl).toHaveBeenCalledWith(
         PeerRole.SCREEN_WATCHER,
@@ -532,6 +585,855 @@ describe("ConnectionManager", () => {
       await firstPromise;
 
       expect(secondResult).toBeNull();
+    });
+  });
+
+  // ================ Cursor Control ================
+
+  describe("updateRemoteCursor", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.updateRemoteCursor(mockCursorData);
+      expect(result).toBe(false);
+    });
+
+    it("should forward cursor update to WebRTC service when connected", async () => {
+      await connectionManager.startSharing("TestSharer");
+      const result = connectionManager.updateRemoteCursor(mockCursorData);
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.updateRemoteCursor).toHaveBeenCalledWith(mockCursorData);
+    });
+
+    it("should return false when WebRTC service returns false", async () => {
+      mockWebRTCServiceInstance.updateRemoteCursor.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+      const result = connectionManager.updateRemoteCursor(mockCursorData);
+      expect(result).toBe(false);
+    });
+
+    it("should handle cursor data with edge position values", async () => {
+      await connectionManager.startSharing("TestSharer");
+      const edgeCursorData: RemoteCursorState = { id: "cursor-edge", name: "EdgeUser", color: "#000000", x: 0, y: 1 };
+      connectionManager.updateRemoteCursor(edgeCursorData);
+      expect(mockWebRTCServiceInstance.updateRemoteCursor).toHaveBeenCalledWith(edgeCursorData);
+    });
+  });
+
+  describe("onCursorUpdate", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should not register callback when not connected", () => {
+      const callback = vi.fn();
+      connectionManager.onCursorUpdate(callback);
+      expect(mockWebRTCServiceInstance.onCursorUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should register callback with WebRTC service when connected", async () => {
+      await connectionManager.startSharing("TestSharer");
+      const callback = vi.fn();
+      connectionManager.onCursorUpdate(callback);
+      expect(mockWebRTCServiceInstance.onCursorUpdate).toHaveBeenCalledWith(callback);
+    });
+
+    it("should allow registering multiple callbacks", async () => {
+      await connectionManager.startSharing("TestSharer");
+      const c1 = vi.fn();
+      const c2 = vi.fn();
+      connectionManager.onCursorUpdate(c1);
+      connectionManager.onCursorUpdate(c2);
+      expect(mockWebRTCServiceInstance.onCursorUpdate).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("toggleRemoteCursors", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.toggleRemoteCursors(true);
+      expect(result).toBe(false);
+    });
+
+    it("should enable cursors through WebRTC service", async () => {
+      await connectionManager.startSharing("TestSharer");
+      const result = connectionManager.toggleRemoteCursors(true);
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.toggleRemoteCursors).toHaveBeenCalledWith(true);
+    });
+
+    it("should disable cursors through WebRTC service", async () => {
+      mockWebRTCServiceInstance.toggleRemoteCursors.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+      const result = connectionManager.toggleRemoteCursors(false);
+      expect(result).toBe(false);
+      expect(mockWebRTCServiceInstance.toggleRemoteCursors).toHaveBeenCalledWith(false);
+    });
+
+    it("should return WebRTC service result when channels not ready", async () => {
+      mockWebRTCServiceInstance.toggleRemoteCursors.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+      const result = connectionManager.toggleRemoteCursors(true);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("isCursorsEnabled", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.isCursorsEnabled();
+      expect(result).toBe(false);
+    });
+
+    it("should return WebRTC service cursor state when connected", async () => {
+      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(true);
+      await connectionManager.startSharing("TestSharer");
+      const result = connectionManager.isCursorsEnabled();
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.isCursorsEnabled).toHaveBeenCalled();
+    });
+
+    it("should return false when cursors are disabled", async () => {
+      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+      const result = connectionManager.isCursorsEnabled();
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("areCursorChannelsReady", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.areCursorChannelsReady();
+      expect(result).toBe(false);
+    });
+
+    it("should return true when data channels are ready", async () => {
+      mockWebRTCServiceInstance.areDataChannelsReady.mockReturnValue(true);
+      await connectionManager.startSharing("TestSharer");
+      const result = connectionManager.areCursorChannelsReady();
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.areDataChannelsReady).toHaveBeenCalled();
+    });
+
+    it("should return false when data channels are not ready", async () => {
+      mockWebRTCServiceInstance.areDataChannelsReady.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+      const result = connectionManager.areCursorChannelsReady();
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("cursor control integration", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should support full cursor workflow for sharer", async () => {
+      mockWebRTCServiceInstance.areDataChannelsReady.mockReturnValue(true);
+      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(false);
+
+      await connectionManager.startSharing("TestSharer");
+
+      expect(connectionManager.areCursorChannelsReady()).toBe(true);
+
+      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(true);
+      connectionManager.toggleRemoteCursors(true);
+      expect(connectionManager.isCursorsEnabled()).toBe(true);
+
+      const cursorCallback = vi.fn();
+      connectionManager.onCursorUpdate(cursorCallback);
+      expect(mockWebRTCServiceInstance.onCursorUpdate).toHaveBeenCalledWith(cursorCallback);
+    });
+
+    it("should support full cursor workflow for watcher", async () => {
+      mockWebRTCServiceInstance.areDataChannelsReady.mockReturnValue(true);
+      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(false);
+
+      await connectionManager.joinSession("TestWatcher", mockVideoElement);
+
+      expect(connectionManager.areCursorChannelsReady()).toBe(true);
+
+      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(true);
+      connectionManager.toggleRemoteCursors(true);
+      expect(connectionManager.isCursorsEnabled()).toBe(true);
+
+      const result = connectionManager.updateRemoteCursor(mockCursorData);
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.updateRemoteCursor).toHaveBeenCalledWith(mockCursorData);
+    });
+
+    it("should reset cursor state after disconnect", async () => {
+      mockWebRTCServiceInstance.areDataChannelsReady.mockReturnValue(true);
+      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(true);
+
+      await connectionManager.startSharing("TestSharer");
+
+      expect(connectionManager.isCursorsEnabled()).toBe(true);
+
+      await connectionManager.disconnect();
+
+      expect(connectionManager.isCursorsEnabled()).toBe(false);
+      expect(connectionManager.areCursorChannelsReady()).toBe(false);
+      expect(connectionManager.updateRemoteCursor(mockCursorData)).toBe(false);
+    });
+
+    it("should reset cursor state after reset", async () => {
+      mockWebRTCServiceInstance.areDataChannelsReady.mockReturnValue(true);
+
+      await connectionManager.startSharing("TestSharer");
+      await connectionManager.reset();
+
+      expect(connectionManager.isCursorsEnabled()).toBe(false);
+      expect(connectionManager.areCursorChannelsReady()).toBe(false);
+    });
+  });
+
+  // ============== Cursor Channel Status ==============
+
+  describe("isCursorPositionsChannelReady", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.isCursorPositionsChannelReady();
+      expect(result).toBe(false);
+    });
+
+    it("should return WebRTC service cursor positions channel status when connected", async () => {
+      mockWebRTCServiceInstance.isCursorPositionsChannelReady.mockReturnValue(true);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isCursorPositionsChannelReady();
+
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.isCursorPositionsChannelReady).toHaveBeenCalled();
+    });
+
+    it("should return false when cursor positions channel is not ready", async () => {
+      mockWebRTCServiceInstance.isCursorPositionsChannelReady.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isCursorPositionsChannelReady();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("isCursorPingChannelReady", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.isCursorPingChannelReady();
+      expect(result).toBe(false);
+    });
+
+    it("should return WebRTC service cursor ping channel status when connected", async () => {
+      mockWebRTCServiceInstance.isCursorPingChannelReady.mockReturnValue(true);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isCursorPingChannelReady();
+
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.isCursorPingChannelReady).toHaveBeenCalled();
+    });
+
+    it("should return false when cursor ping channel is not ready", async () => {
+      mockWebRTCServiceInstance.isCursorPingChannelReady.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isCursorPingChannelReady();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("onChannelOpen", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should not register callback when not connected", () => {
+      const callback = vi.fn();
+      connectionManager.onChannelOpen(callback);
+      expect(mockWebRTCServiceInstance.onChannelOpen).not.toHaveBeenCalled();
+    });
+
+    it("should register callback with WebRTC service when connected", async () => {
+      await connectionManager.startSharing("TestSharer");
+      const callback = vi.fn();
+
+      connectionManager.onChannelOpen(callback);
+
+      expect(mockWebRTCServiceInstance.onChannelOpen).toHaveBeenCalledWith(callback);
+    });
+  });
+
+  describe("onChannelClose", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should not register callback when not connected", () => {
+      const callback = vi.fn();
+      connectionManager.onChannelClose(callback);
+      expect(mockWebRTCServiceInstance.onChannelClose).not.toHaveBeenCalled();
+    });
+
+    it("should register callback with WebRTC service when connected", async () => {
+      await connectionManager.startSharing("TestSharer");
+      const callback = vi.fn();
+
+      connectionManager.onChannelClose(callback);
+
+      expect(mockWebRTCServiceInstance.onChannelClose).toHaveBeenCalledWith(callback);
+    });
+  });
+
+  // ============== Media Control ==============
+
+  describe("toggleMicrophone", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.toggleMicrophone();
+      expect(result).toBe(false);
+    });
+
+    it("should toggle microphone through WebRTC service when connected", async () => {
+      mockWebRTCServiceInstance.toggleMicrophone.mockReturnValue(true);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.toggleMicrophone();
+
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.toggleMicrophone).toHaveBeenCalled();
+    });
+
+    it("should return false when microphone toggle fails", async () => {
+      mockWebRTCServiceInstance.toggleMicrophone.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.toggleMicrophone();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("setMicrophoneEnabled", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should not call WebRTC service when not connected", () => {
+      connectionManager.setMicrophoneEnabled(true);
+      expect(mockWebRTCServiceInstance.setMicrophoneEnabled).not.toHaveBeenCalled();
+    });
+
+    it("should enable microphone through WebRTC service when connected", async () => {
+      await connectionManager.startSharing("TestSharer");
+
+      connectionManager.setMicrophoneEnabled(true);
+
+      expect(mockWebRTCServiceInstance.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+    });
+
+    it("should disable microphone through WebRTC service when connected", async () => {
+      await connectionManager.startSharing("TestSharer");
+
+      connectionManager.setMicrophoneEnabled(false);
+
+      expect(mockWebRTCServiceInstance.setMicrophoneEnabled).toHaveBeenCalledWith(false);
+    });
+  });
+
+  describe("toggleDisplayStream", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.toggleDisplayStream();
+      expect(result).toBe(false);
+    });
+
+    it("should toggle display stream through WebRTC service when connected", async () => {
+      mockWebRTCServiceInstance.toggleDisplayStream.mockReturnValue(true);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.toggleDisplayStream();
+
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.toggleDisplayStream).toHaveBeenCalled();
+    });
+
+    it("should return false when display stream toggle fails", async () => {
+      mockWebRTCServiceInstance.toggleDisplayStream.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.toggleDisplayStream();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("setDisplayStreamEnabled", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should not call WebRTC service when not connected", () => {
+      connectionManager.setDisplayStreamEnabled(true);
+      expect(mockWebRTCServiceInstance.setDisplayStreamEnabled).not.toHaveBeenCalled();
+    });
+
+    it("should enable display stream through WebRTC service when connected", async () => {
+      await connectionManager.startSharing("TestSharer");
+
+      connectionManager.setDisplayStreamEnabled(true);
+
+      expect(mockWebRTCServiceInstance.setDisplayStreamEnabled).toHaveBeenCalledWith(true);
+    });
+
+    it("should disable display stream through WebRTC service when connected", async () => {
+      await connectionManager.startSharing("TestSharer");
+
+      connectionManager.setDisplayStreamEnabled(false);
+
+      expect(mockWebRTCServiceInstance.setDisplayStreamEnabled).toHaveBeenCalledWith(false);
+    });
+  });
+
+  describe("isMicrophoneActive", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.isMicrophoneActive();
+      expect(result).toBe(false);
+    });
+
+    it("should return WebRTC service microphone status when connected", async () => {
+      mockWebRTCServiceInstance.isMicrophoneActive.mockReturnValue(true);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isMicrophoneActive();
+
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.isMicrophoneActive).toHaveBeenCalled();
+    });
+
+    it("should return false when microphone is not active", async () => {
+      mockWebRTCServiceInstance.isMicrophoneActive.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isMicrophoneActive();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("hasAudioInput", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.hasAudioInput();
+      expect(result).toBe(false);
+    });
+
+    it("should return true when audio input is available", async () => {
+      mockWebRTCServiceInstance.hasAudioInput.mockReturnValue(true);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.hasAudioInput();
+
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.hasAudioInput).toHaveBeenCalled();
+    });
+
+    it("should return false when audio input is not available", async () => {
+      mockWebRTCServiceInstance.hasAudioInput.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.hasAudioInput();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("getAudioStream", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return null when not connected", () => {
+      const result = connectionManager.getAudioStream();
+      expect(result).toBeNull();
+    });
+
+    it("should return audio stream from WebRTC service when connected", async () => {
+      const mockStream = new MockMediaStream() as unknown as MediaStream;
+      mockWebRTCServiceInstance.getAudioStream.mockReturnValue(mockStream);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.getAudioStream();
+
+      expect(result).toBe(mockStream);
+      expect(mockWebRTCServiceInstance.getAudioStream).toHaveBeenCalled();
+    });
+
+    it("should return null when no audio stream available", async () => {
+      mockWebRTCServiceInstance.getAudioStream.mockReturnValue(null);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.getAudioStream();
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("getDisplayStream", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return null when not connected", () => {
+      const result = connectionManager.getDisplayStream();
+      expect(result).toBeNull();
+    });
+
+    it("should return display stream from WebRTC service when connected", async () => {
+      const mockStream = new MockMediaStream() as unknown as MediaStream;
+      mockWebRTCServiceInstance.getDisplayStream.mockReturnValue(mockStream);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.getDisplayStream();
+
+      expect(result).toBe(mockStream);
+      expect(mockWebRTCServiceInstance.getDisplayStream).toHaveBeenCalled();
+    });
+
+    it("should return null when no display stream available", async () => {
+      mockWebRTCServiceInstance.getDisplayStream.mockReturnValue(null);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.getDisplayStream();
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("isDisplayStreamActive", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.isDisplayStreamActive();
+      expect(result).toBe(false);
+    });
+
+    it("should return true when display stream is active", async () => {
+      mockWebRTCServiceInstance.isDisplayStreamActive.mockReturnValue(true);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isDisplayStreamActive();
+
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.isDisplayStreamActive).toHaveBeenCalled();
+    });
+
+    it("should return false when display stream is not active", async () => {
+      mockWebRTCServiceInstance.isDisplayStreamActive.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isDisplayStreamActive();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("isDisplayActive", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.isDisplayActive();
+      expect(result).toBe(false);
+    });
+
+    it("should return true when display is active", async () => {
+      mockWebRTCServiceInstance.isDisplayActive.mockReturnValue(true);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isDisplayActive();
+
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.isDisplayActive).toHaveBeenCalled();
+    });
+
+    it("should return false when display is not active", async () => {
+      mockWebRTCServiceInstance.isDisplayActive.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isDisplayActive();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  // ============== Connection State ==============
+
+  describe("getConnectionState", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return null when not connected", () => {
+      const result = connectionManager.getConnectionState();
+      expect(result).toBeNull();
+    });
+
+    it("should return connection state from WebRTC service when connected", async () => {
+      mockWebRTCServiceInstance.getConnectionState.mockReturnValue("connected");
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.getConnectionState();
+
+      expect(result).toBe("connected");
+      expect(mockWebRTCServiceInstance.getConnectionState).toHaveBeenCalled();
+    });
+
+    it("should return different connection states", async () => {
+      await connectionManager.startSharing("TestSharer");
+
+      const states: RTCPeerConnectionState[] = ["new", "connecting", "connected", "disconnected", "failed", "closed"];
+      
+      for (const state of states) {
+        mockWebRTCServiceInstance.getConnectionState.mockReturnValue(state);
+        const result = connectionManager.getConnectionState();
+        expect(result).toBe(state);
+      }
+    });
+  });
+
+  describe("getIceConnectionState", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return null when not connected", () => {
+      const result = connectionManager.getIceConnectionState();
+      expect(result).toBeNull();
+    });
+
+    it("should return ICE connection state from WebRTC service when connected", async () => {
+      mockWebRTCServiceInstance.getIceConnectionState.mockReturnValue("connected");
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.getIceConnectionState();
+
+      expect(result).toBe("connected");
+      expect(mockWebRTCServiceInstance.getIceConnectionState).toHaveBeenCalled();
+    });
+
+    it("should return different ICE connection states", async () => {
+      await connectionManager.startSharing("TestSharer");
+
+      const states: RTCIceConnectionState[] = ["new", "checking", "connected", "completed", "disconnected", "failed", "closed"];
+      
+      for (const state of states) {
+        mockWebRTCServiceInstance.getIceConnectionState.mockReturnValue(state);
+        const result = connectionManager.getIceConnectionState();
+        expect(result).toBe(state);
+      }
+    });
+  });
+
+  describe("isServiceInitialized", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.isServiceInitialized();
+      expect(result).toBe(false);
+    });
+
+    it("should return true when service is initialized", async () => {
+      mockWebRTCServiceInstance.isServiceInitialized.mockReturnValue(true);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isServiceInitialized();
+
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.isServiceInitialized).toHaveBeenCalled();
+    });
+
+    it("should return false when service is not initialized", async () => {
+      mockWebRTCServiceInstance.isServiceInitialized.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isServiceInitialized();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("isScreenSharer", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.isScreenSharer();
+      expect(result).toBe(false);
+    });
+
+    it("should return true when role is screen sharer", async () => {
+      mockWebRTCServiceInstance.isScreenSharer.mockReturnValue(true);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isScreenSharer();
+
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.isScreenSharer).toHaveBeenCalled();
+    });
+
+    it("should return false when role is screen watcher", async () => {
+      mockWebRTCServiceInstance.isScreenSharer.mockReturnValue(false);
+      await connectionManager.joinSession("TestWatcher", mockVideoElement);
+
+      const result = connectionManager.isScreenSharer();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("isScreenWatcher", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should return false when not connected", () => {
+      const result = connectionManager.isScreenWatcher();
+      expect(result).toBe(false);
+    });
+
+    it("should return true when role is screen watcher", async () => {
+      mockWebRTCServiceInstance.isScreenWatcher.mockReturnValue(true);
+      await connectionManager.joinSession("TestWatcher", mockVideoElement);
+
+      const result = connectionManager.isScreenWatcher();
+
+      expect(result).toBe(true);
+      expect(mockWebRTCServiceInstance.isScreenWatcher).toHaveBeenCalled();
+    });
+
+    it("should return false when role is screen sharer", async () => {
+      mockWebRTCServiceInstance.isScreenWatcher.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+
+      const result = connectionManager.isScreenWatcher();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  // ============== Media Control Integration ==============
+
+  describe("media control integration", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should support full media workflow for sharer", async () => {
+      mockWebRTCServiceInstance.isDisplayActive.mockReturnValue(true);
+      mockWebRTCServiceInstance.hasAudioInput.mockReturnValue(true);
+      mockWebRTCServiceInstance.isMicrophoneActive.mockReturnValue(false);
+      
+      await connectionManager.startSharing("TestSharer");
+
+      // Check initial state
+      expect(connectionManager.isDisplayActive()).toBe(true);
+      expect(connectionManager.hasAudioInput()).toBe(true);
+      expect(connectionManager.isMicrophoneActive()).toBe(false);
+
+      // Enable microphone
+      mockWebRTCServiceInstance.isMicrophoneActive.mockReturnValue(true);
+      connectionManager.setMicrophoneEnabled(true);
+      expect(mockWebRTCServiceInstance.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+      expect(connectionManager.isMicrophoneActive()).toBe(true);
+
+      // Toggle display stream
+      mockWebRTCServiceInstance.isDisplayStreamActive.mockReturnValue(false);
+      connectionManager.toggleDisplayStream();
+      expect(mockWebRTCServiceInstance.toggleDisplayStream).toHaveBeenCalled();
+    });
+
+    it("should support full media workflow for watcher", async () => {
+      mockWebRTCServiceInstance.hasAudioInput.mockReturnValue(true);
+      mockWebRTCServiceInstance.isMicrophoneActive.mockReturnValue(false);
+      
+      await connectionManager.joinSession("TestWatcher", mockVideoElement);
+
+      // Check initial state
+      expect(connectionManager.hasAudioInput()).toBe(true);
+      expect(connectionManager.isMicrophoneActive()).toBe(false);
+
+      // Enable microphone for voice communication
+      mockWebRTCServiceInstance.isMicrophoneActive.mockReturnValue(true);
+      connectionManager.setMicrophoneEnabled(true);
+      expect(mockWebRTCServiceInstance.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+      expect(connectionManager.isMicrophoneActive()).toBe(true);
+
+      // Toggle microphone
+      mockWebRTCServiceInstance.toggleMicrophone.mockReturnValue(false);
+      mockWebRTCServiceInstance.isMicrophoneActive.mockReturnValue(false);
+      const toggleResult = connectionManager.toggleMicrophone();
+      expect(toggleResult).toBe(false);
+      expect(connectionManager.isMicrophoneActive()).toBe(false);
+    });
+
+    it("should reset media state after disconnect", async () => {
+      mockWebRTCServiceInstance.isDisplayActive.mockReturnValue(true);
+      mockWebRTCServiceInstance.isMicrophoneActive.mockReturnValue(true);
+
+      await connectionManager.startSharing("TestSharer");
+
+      // Verify media works before disconnect
+      expect(connectionManager.isDisplayActive()).toBe(true);
+      expect(connectionManager.isMicrophoneActive()).toBe(true);
+
+      // Disconnect
+      await connectionManager.disconnect();
+
+      // After disconnect, media methods should return false/null
+      expect(connectionManager.isDisplayActive()).toBe(false);
+      expect(connectionManager.isMicrophoneActive()).toBe(false);
+      expect(connectionManager.getDisplayStream()).toBeNull();
+      expect(connectionManager.getAudioStream()).toBeNull();
+    });
+  });
+
+  // ============== Connection State Integration ==============
+
+  describe("connection state integration", () => {
+    beforeEach(setupCursorMocks);
+
+    it("should track connection lifecycle", async () => {
+      mockWebRTCServiceInstance.isServiceInitialized.mockReturnValue(false);
+      mockWebRTCServiceInstance.getConnectionState.mockReturnValue(null);
+      
+      // Before connection
+      expect(connectionManager.isServiceInitialized()).toBe(false);
+      expect(connectionManager.getConnectionState()).toBeNull();
+
+      // After starting sharing
+      mockWebRTCServiceInstance.isServiceInitialized.mockReturnValue(true);
+      mockWebRTCServiceInstance.getConnectionState.mockReturnValue("new");
+      await connectionManager.startSharing("TestSharer");
+
+      expect(connectionManager.isServiceInitialized()).toBe(true);
+      expect(connectionManager.getConnectionState()).toBe("new");
+
+      // Simulating connection progress
+      mockWebRTCServiceInstance.getConnectionState.mockReturnValue("connecting");
+      expect(connectionManager.getConnectionState()).toBe("connecting");
+
+      mockWebRTCServiceInstance.getConnectionState.mockReturnValue("connected");
+      expect(connectionManager.getConnectionState()).toBe("connected");
+    });
+
+    it("should correctly identify role after connection", async () => {
+      // Start as sharer
+      mockWebRTCServiceInstance.isScreenSharer.mockReturnValue(true);
+      mockWebRTCServiceInstance.isScreenWatcher.mockReturnValue(false);
+      await connectionManager.startSharing("TestSharer");
+
+      expect(connectionManager.isScreenSharer()).toBe(true);
+      expect(connectionManager.isScreenWatcher()).toBe(false);
+
+      // Reset and join as watcher
+      await connectionManager.reset();
+      
+      mockWebRTCServiceInstance = createMockWebRTCService();
+      mockWebRTCServiceInstance.createWatcherAnswer.mockResolvedValue(mockAnswer);
+      mockWebRTCServiceInstance.isScreenSharer.mockReturnValue(false);
+      mockWebRTCServiceInstance.isScreenWatcher.mockReturnValue(true);
+
+      await connectionManager.joinSession("TestWatcher", mockVideoElement);
+
+      expect(connectionManager.isScreenSharer()).toBe(false);
+      expect(connectionManager.isScreenWatcher()).toBe(true);
     });
   });
 
