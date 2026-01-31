@@ -288,16 +288,16 @@ describe("MediaStreamService", () => {
     });
   });
 
-  describe("isVideoTrackActive", () => {
+  describe("isDisplayStreamActive", () => {
     it("should return false when no display stream exists", () => {
-      expect(service.isVideoTrackActive()).toBe(false);
+      expect(service.isDisplayStreamActive()).toBe(false);
     });
 
     it("should return true when video track is enabled", async () => {
       mockMediaDevices.getDisplayMedia.mockResolvedValue(mockDisplayStream);
       await service.getDisplayMedia();
 
-      expect(service.isVideoTrackActive()).toBe(true);
+      expect(service.isDisplayStreamActive()).toBe(true);
     });
 
     it("should return false when video track is disabled", async () => {
@@ -305,7 +305,7 @@ describe("MediaStreamService", () => {
       mockMediaDevices.getDisplayMedia.mockResolvedValue(mockDisplayStream);
       await service.getDisplayMedia();
 
-      expect(service.isVideoTrackActive()).toBe(false);
+      expect(service.isDisplayStreamActive()).toBe(false);
     });
   });
 
