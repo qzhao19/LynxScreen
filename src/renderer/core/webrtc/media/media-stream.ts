@@ -177,7 +177,7 @@ export class MediaStreamService {
    * Checks if any video track is currently enabled.
    * @returns True if any video track is enabled, false otherwise.
    */
-  public isVideoTrackActive(): boolean {
+  public isDisplayStreamActive(): boolean {
     if (!this.displayStream) return false;
     return this.displayStream.getVideoTracks().some(track => track.enabled);
   }
