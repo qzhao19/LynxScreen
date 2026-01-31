@@ -123,6 +123,11 @@ export class DataChannelService {
 
   /**
    * Registers a callback for cursor ping messages.
+   * 
+   * OPTIONAL FEATURE: Used for cursor channel keep-alive and latency detection.
+   * Future use case: Display remote cursor online/latency status in UI.
+   * Currently not used in frontend - kept for future enhancements.
+   * 
    * @param callback - Function to call when cursor ping is received
    */
   public onCursorPing(callback: (cursorId: string) => void): void {
@@ -167,6 +172,11 @@ export class DataChannelService {
 
   /**
    * Sends cursor ping to the remote peer.
+   * 
+   * OPTIONAL FEATURE: Used for cursor channel keep-alive and latency detection.
+   * Future use case: Detect if remote cursor is still responsive, measure network latency.
+   * Currently not used in frontend - kept for future enhancements.
+   * 
    * @param cursorId - The cursor ID to ping
    * @returns True if sent successfully, false otherwise
    */
@@ -215,6 +225,9 @@ export class DataChannelService {
 
   /**
    * Checks if the cursor ping channel is ready.
+   * 
+   * OPTIONAL FEATURE: Related to cursor keep-alive mechanism.
+   * Currently not used in frontend - kept for future enhancements.
    */
   public isCursorPingChannelReady(): boolean {
     return this.isChannelReady(this.cursorPingChannel);
