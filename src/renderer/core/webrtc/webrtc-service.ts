@@ -228,9 +228,9 @@ export class WebRTCService {
    */
   public toggleDisplayStream(): boolean {
     // Get current state and toggle
-    const currentState = this.mediaService.isVideoTrackActive();
+    const currentState = this.mediaService.isDisplayStreamActive();
     this.mediaService.toggleVideoTrack(!currentState);
-    return this.mediaService.isVideoTrackActive();
+    return this.mediaService.isDisplayStreamActive();
   }
 
   /**
@@ -246,6 +246,13 @@ export class WebRTCService {
    */
   public isMicrophoneActive(): boolean {
     return this.mediaService.isAudioTrackActive();
+  }
+
+  /**
+   * Gets display stream
+   */
+  public getDisplayStream(): MediaStream | null {
+    return this.mediaService.getDisplayStream();
   }
 
   /**
@@ -266,7 +273,7 @@ export class WebRTCService {
    * Checks if display stream is active
    */
   public isDisplayStreamActive(): boolean {
-    return this.mediaService.isVideoTrackActive();
+    return this.mediaService.isDisplayStreamActive();
   }
 
   /**
@@ -286,7 +293,14 @@ export class WebRTCService {
   }
 
   /**
-   * Pings remote cursor
+   * Pings remote cursor for keep-alive and latency detection.
+   * 
+   * OPTIONAL FEATURE: Used for cursor channel keep-alive mechanism.
+   * Future use case: Display remote cursor online status and network latency in UI.
+   * Currently not used in frontend - kept for future enhancements.
+   * 
+   * @param cursorId - The cursor ID to ping
+   * @returns True if ping sent successfully, false otherwise
    */
   public pingRemoteCursor(cursorId: string): boolean {
     return this.dataChannelService.sendCursorPing(cursorId);
@@ -307,6 +321,20 @@ export class WebRTCService {
   }
 
   /**
+   * Checks if cursor positions channel is ready
+   */
+  public isCursorPositionsChannelReady(): boolean {
+    return this.dataChannelService.isCursorPositionsChannelReady();
+  }
+
+  /**
+   * Checks if cursor ping channel is ready
+   */
+  public isCursorPingChannelReady(): boolean {
+    return this.dataChannelService.isCursorPingChannelReady();
+  }
+
+  /**
    * Checks if data channels are ready
    */
   public areDataChannelsReady(): boolean {
@@ -321,7 +349,13 @@ export class WebRTCService {
   }
 
   /**
-   * Registers cursor ping callback
+   * Registers callback for receiving cursor ping messages.
+   * 
+   * OPTIONAL FEATURE: Used for cursor channel keep-alive and latency detection.
+   * Future use case: Implement cursor online status indicator and latency display in UI.
+   * Currently not used in frontend - kept for future enhancements.
+   * 
+   * @param callback - Function called when cursor ping is received, receives cursor ID
    */
   public onCursorPing(callback: (cursorId: string) => void): void {
     this.dataChannelService.onCursorPing(callback);
