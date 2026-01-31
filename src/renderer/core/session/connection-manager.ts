@@ -11,7 +11,8 @@ import {
 import { 
   PeerRole, 
   ConnectionPhase,
-  ConnectionManagerCallbacks
+  ConnectionManagerCallbacks,
+  RemoteCursorState
 } from "../../../shared/types/index";
 import { WebRTCServiceConfig } from "../../shared/types/index";
 
@@ -298,6 +299,223 @@ export class ConnectionManager {
     } finally {
       this.releaseOperationLock();
     }
+  }
+
+  // ============== CURSOR CONTROL ==============
+
+  /**
+   * Checks if cursor positions channel is ready
+   */
+  public isCursorPositionsChannelReady(): boolean {
+    return this.webrtcService?.isCursorPositionsChannelReady() ?? false;
+  }
+
+  /**
+   * Checks if cursor ping channel is ready
+   * 
+   * OPTIONAL FEATURE: Related to cursor keep-alive mechanism.
+   * Currently not used in frontend - kept for future enhancements.
+   */
+  public isCursorPingChannelReady(): boolean {
+    return this.webrtcService?.isCursorPingChannelReady() ?? false;
+  }
+
+  /**
+   * Registers callback for data channel open events
+   */
+  public onChannelOpen(callback: (channelName: string) => void): void {
+    if (!this.webrtcService) {
+      log.warn("[ConnectionManager] Cannot register channel open callback: not initialized");
+      return;
+    }
+    this.webrtcService.onChannelOpen(callback);
+  }
+
+  /**
+   * Registers callback for data channel close events
+   */
+  public onChannelClose(callback: (channelName: string) => void): void {
+    if (!this.webrtcService) {
+      log.warn("[ConnectionManager] Cannot register channel close callback: not initialized");
+      return;
+    }
+    this.webrtcService.onChannelClose(callback);
+  }
+
+  /**
+   * Updates remote cursor position (called by watcher)
+   */
+  public updateRemoteCursor(cursorData: RemoteCursorState): boolean {
+    if (!this.webrtcService) {
+      log.warn("[ConnectionManager] Cannot update cursor: not connected");
+      return false;
+    }
+    return this.webrtcService.updateRemoteCursor(cursorData);
+  }
+
+  /**
+   * Registers callback for receiving cursor updates (for sharer)
+   */
+  public onCursorUpdate(callback: (data: RemoteCursorState) => void): void {
+    if (!this.webrtcService) {
+      log.warn("[ConnectionManager] Cannot register cursor callback: not initialized");
+      return;
+    }
+    this.webrtcService.onCursorUpdate(callback);
+  }
+
+  /**
+   * Toggles cursor synchronization
+   */
+  public toggleRemoteCursors(enabled: boolean): boolean {
+    if (!this.webrtcService) {
+      log.warn("[ConnectionManager] Cannot toggle cursors: not connected");
+      return false;
+    }
+    return this.webrtcService.toggleRemoteCursors(enabled);
+  }
+
+  /**
+   * Checks if cursor synchronization is enabled
+   */
+  public isCursorsEnabled(): boolean {
+    return this.webrtcService?.isCursorsEnabled() ?? false;
+  }
+
+  /**
+   * Checks if data channels are ready for cursor sync
+   */
+  public areCursorChannelsReady(): boolean {
+    return this.webrtcService?.areDataChannelsReady() ?? false;
+  }
+
+  // ============== MEDIA CONTROL ==============
+
+  /**
+   * Toggles microphone state
+   * @returns Current microphone enabled state
+   */
+  public toggleMicrophone(): boolean {
+    if (!this.webrtcService) {
+      log.warn("[ConnectionManager] Cannot toggle microphone: not connected");
+      return false;
+    }
+    return this.webrtcService.toggleMicrophone();
+  }
+
+  /**
+   * Sets microphone enabled state
+   * @param enabled - Whether to enable microphone
+   */
+  public setMicrophoneEnabled(enabled: boolean): void {
+    if (!this.webrtcService) {
+      log.warn("[ConnectionManager] Cannot set microphone state: not connected");
+      return;
+    }
+    this.webrtcService.setMicrophoneEnabled(enabled);
+  }
+
+  /**
+   * Toggles display stream state
+   * @returns Current display stream enabled state
+   */
+  public toggleDisplayStream(): boolean {
+    if (!this.webrtcService) {
+      log.warn("[ConnectionManager] Cannot toggle display stream: not connected");
+      return false;
+    }
+    return this.webrtcService.toggleDisplayStream();
+  }
+
+  /**
+   * Sets display stream enabled state
+   * @param enabled - Whether to enable display stream
+   */
+  public setDisplayStreamEnabled(enabled: boolean): void {
+    if (!this.webrtcService) {
+      log.warn("[ConnectionManager] Cannot set display stream state: not connected");
+      return;
+    }
+    this.webrtcService.setDisplayStreamEnabled(enabled);
+  }
+
+  /**
+   * Checks if microphone is active
+   */
+  public isMicrophoneActive(): boolean {
+    return this.webrtcService?.isMicrophoneActive() ?? false;
+  }
+
+  /**
+   * Checks if audio input is available
+   */
+  public hasAudioInput(): boolean {
+    return this.webrtcService?.hasAudioInput() ?? false;
+  }
+
+  /**
+   * Gets audio stream
+   */
+  public getAudioStream(): MediaStream | null {
+    return this.webrtcService?.getAudioStream() ?? null;
+  }
+
+  /**
+   * Gets display stream
+   */
+  public getDisplayStream(): MediaStream | null {
+    return this.webrtcService?.getDisplayStream() ?? null;
+  }
+
+  /**
+   * Checks if display stream is active (tracks enabled)
+   */
+  public isDisplayStreamActive(): boolean {
+    return this.webrtcService?.isDisplayStreamActive() ?? false;
+  }
+
+  /**
+   * Checks if display is actively capturing
+   */
+  public isDisplayActive(): boolean {
+    return this.webrtcService?.isDisplayActive() ?? false;
+  }
+
+  // ============== CONNECTION STATE ==============
+
+  /**
+   * Gets the current peer connection state
+   */
+  public getConnectionState(): RTCPeerConnectionState | null {
+    return this.webrtcService?.getConnectionState() ?? null;
+  }
+
+  /**
+   * Gets the current ICE connection state
+   */
+  public getIceConnectionState(): RTCIceConnectionState | null {
+    return this.webrtcService?.getIceConnectionState() ?? null;
+  }
+
+  /**
+   * Checks if WebRTC service is initialized
+   */
+  public isServiceInitialized(): boolean {
+    return this.webrtcService?.isServiceInitialized() ?? false;
+  }
+
+  /**
+   * Checks if current role is screen sharer
+   */
+  public isScreenSharer(): boolean {
+    return this.webrtcService?.isScreenSharer() ?? false;
+  }
+
+  /**
+   * Checks if current role is screen watcher
+   */
+  public isScreenWatcher(): boolean {
+    return this.webrtcService?.isScreenWatcher() ?? false;
   }
 
   // ============== COMMON METHODS ==============
