@@ -30,7 +30,20 @@ function loadSettings(): AppSettings {
   try {
     const stored = localStorage.getItem("lynxscreen-settings");
     if (stored) {
-      return { ...DEFAULT_APP_SETTINGS, ...JSON.parse(stored) };
+      const parsed = JSON.parse(stored);
+      // Deep merge for nested objects like iceServers
+      return {
+        ...DEFAULT_APP_SETTINGS,
+        ...parsed,
+        // Ensure iceServers array items have all required fields
+        iceServers: Array.isArray(parsed.iceServers) && parsed.iceServers.length > 0
+          ? parsed.iceServers.map((server: Partial<typeof DEFAULT_APP_SETTINGS.iceServers[0]>) => ({
+              urls: server.urls || "",
+              authUsername: server.authUsername || "",
+              credential: server.credential || ""
+            }))
+          : DEFAULT_APP_SETTINGS.iceServers
+      };
     }
   } catch (error) {
     console.error("Failed to load settings:", error);
@@ -82,7 +95,8 @@ let timerInterval: ReturnType<typeof setInterval> | null = null;
 
 // Start session timer
 export function startSessionTimer() {
-  if (timerInterval) clearInterval(timerInterval);
+  // Always clear any existing interval to prevent memory leaks
+  stopSessionTimer();
   
   sessionState.update(s => ({ ...s, duration: 0 }));
   
