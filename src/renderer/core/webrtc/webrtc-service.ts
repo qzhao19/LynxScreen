@@ -293,11 +293,7 @@ export class WebRTCService {
   }
 
   /**
-   * Pings remote cursor for keep-alive and latency detection.
-   * 
-   * OPTIONAL FEATURE: Used for cursor channel keep-alive mechanism.
-   * Future use case: Display remote cursor online status and network latency in UI.
-   * Currently not used in frontend - kept for future enhancements.
+   * !Pings remote cursor for keep-alive and latency detection. Currently not used in frontend - kept for future enhancements.
    * 
    * @param cursorId - The cursor ID to ping
    * @returns True if ping sent successfully, false otherwise
@@ -349,11 +345,7 @@ export class WebRTCService {
   }
 
   /**
-   * Registers callback for receiving cursor ping messages.
-   * 
-   * OPTIONAL FEATURE: Used for cursor channel keep-alive and latency detection.
-   * Future use case: Implement cursor online status indicator and latency display in UI.
-   * Currently not used in frontend - kept for future enhancements.
+   * !Registers callback for receiving cursor ping messages. Currently not used in frontend - kept for future enhancements.
    * 
    * @param callback - Function called when cursor ping is received, receives cursor ID
    */
