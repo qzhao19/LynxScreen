@@ -14,7 +14,7 @@ export const currentPage = writable<PageType>("home");
 export const sessionState = writable<SessionState>({
   isActive: false,
   sessionUrl: "",
-  participantUrl: "",
+  watcherUrl: "",
   duration: 0,
   status: "idle"
 });
