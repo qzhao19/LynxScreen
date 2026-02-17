@@ -5,7 +5,7 @@ export type PageType = "home" | "watch" | "share" | "active-sharing" | "settings
 export interface SessionState {
   isActive: boolean;
   sessionUrl: string;
-  participantUrl: string;
+  watcherUrl: string;
   duration: number;
   status: "idle" | "waiting" | "connected" | "error";
 }
