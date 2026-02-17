@@ -8,18 +8,10 @@
     formatDuration,
     showToast 
   } from "../stores/app";
+  import { copyToClipboard } from "../../shared/utils/index";
 
   let participantInput = "";
   let isConnecting = false;
-
-  async function copyToClipboard() {
-    try {
-      await navigator.clipboard.writeText($sessionState.sessionUrl);
-      showToast("Link copied to clipboard", "success");
-    } catch (error) {
-      showToast("Failed to copy", "error");
-    }
-  }
 
   async function handleConnectParticipant() {
     if (!participantInput.trim()) {
@@ -44,13 +36,23 @@
     }
   }
 
+  async function handleCopySessionUrl() {
+    try {
+      await copyToClipboard($sessionState.sessionUrl);
+      showToast("Session URL copied to clipboard", "success");
+    } catch (error) {
+      console.error("Failed to copy:", error);
+      showToast("Failed to copy to clipboard", "error");
+    }
+  }
+
   function handleCancel() {
     stopSessionTimer();
     sessionState.update(s => ({
       ...s,
       isActive: false,
       sessionUrl: "",
-      participantUrl: "",
+      watcherUrl: "",
       duration: 0,
       status: "idle"
     }));
@@ -97,7 +99,7 @@
         
         <div class="url-container">
           <code class="url-text">{$sessionState.sessionUrl}</code>
-          <button class="copy-button" on:click={copyToClipboard}>
+          <button class="copy-button" on:click={handleCopySessionUrl}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
