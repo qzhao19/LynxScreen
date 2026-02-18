@@ -97,7 +97,7 @@
             placeholder="Enter your display name"
             class="input"
           />
-          <p class="hint">This name will be shown to other participants</p>
+          <p class="hint">This name will be shown to other watchers</p>
         </div>
 
         <div class="form-group">
