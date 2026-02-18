@@ -7,7 +7,7 @@
   // Props
   export let url: string = "";
   export let label = "Connection URL";
-  export let hint = "Share this link with the participant";
+  export let hint = "Share this link with the watcher";
   export let showCopyButton = true;
   export let readonly = true;
   
