@@ -10,11 +10,11 @@
   } from "../stores/app";
   import { copyToClipboard } from "../../shared/utils/index";
 
-  let participantInput = "";
+  let watcherInput = "";
   let isConnecting = false;
 
-  async function handleConnectParticipant() {
-    if (!participantInput.trim()) {
+  async function handleConnectWatcher() {
+    if (!watcherInput.trim()) {
       showToast("Please enter the participant URL string", "error");
       return;
     }
@@ -22,13 +22,13 @@
     isConnecting = true;
     
     try {
-      // TODO: Call actual connect participant logic
-      // await connectionManager.acceptAnswerUrl(participantInput);
+      // TODO: Call actual connect watcher logic
+      // await connectionManager.acceptAnswerUrl(watcherInput);
       
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       sessionState.update(s => ({ ...s, status: "connected" }));
-      showToast("Participant connected", "success");
+      showToast("Watcher connected", "success");
     } catch (error) {
       showToast("Connection failed", "error");
     } finally {
@@ -62,7 +62,7 @@
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Enter" && !isConnecting) {
-      handleConnectParticipant();
+      handleConnectWatcher();
     }
   }
 </script>
@@ -108,10 +108,10 @@
           </button>
         </div>
         
-        <p class="hint">Share this link with participants to join the session</p>
+        <p class="hint">Share this link with the watcher to join the session</p>
       </section>
 
-      <!-- Participant connection section -->
+      <!-- Watcher connection section -->
       <section class="section">
         <div class="section-header">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -120,28 +120,28 @@
             <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
             <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
-          <span>Participant Connection</span>
+          <span>Watcher Connection</span>
         </div>
         
         <input
           type="text"
-          bind:value={participantInput}
+          bind:value={watcherInput}
           on:keydown={handleKeydown}
-          placeholder="Enter participant connection string..."
+          placeholder="Enter watcher connection string..."
           class="input"
           disabled={isConnecting}
         />
         
         <button 
           class="connect-button"
-          on:click={handleConnectParticipant}
-          disabled={isConnecting || !participantInput.trim()}
+          on:click={handleConnectWatcher}
+          disabled={isConnecting || !watcherInput.trim()}
         >
           {#if isConnecting}
             <span class="spinner"></span>
             Connecting...
           {:else}
-            Connect Participant
+            Connect Watcher
           {/if}
         </button>
       </section>
