@@ -6,9 +6,9 @@
     isConnected,
     isSharer,
     toggleMicrophone,
-    toggleDisplayStream
-  } from "../../stores/connection";
-  import { showToast } from "../../stores/app";
+    toggleDisplayStream,
+    showToast
+  } from "../../stores/index";
 
   // Props
   export let showMicrophone = true;
