@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
-  import { generatedUrl } from "../../stores/connection";
+  import { generatedUrl, showToast } from "../../stores/index";
   import { copyToClipboard } from "../../../shared/utils/clipboard";
-  import { showToast } from "../../stores/app";
 
   // Props
   export let url: string = "";
