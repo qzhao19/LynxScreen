@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { isConnected } from "../../stores/connection";
+  import { isConnected } from "../../stores/index";
 
   // Props
   export let startTime: Date | null = null;
