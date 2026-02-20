@@ -6,9 +6,9 @@
     connectionPhase,
     sendCursorUpdate,
     setupCursorSync,
-    cursorChannelsReady
-  } from "../../stores/connection";
-  import { appSettings } from "../../stores/app";
+    cursorChannelsReady,
+    appSettings
+  } from "../../stores/index";
   import { ConnectionPhase } from "../../../shared/types/index";
 
   // Props
