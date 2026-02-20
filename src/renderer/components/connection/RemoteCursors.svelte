@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import { fade } from "svelte/transition";
-  import { remoteCursors, removeRemoteCursor } from "../../stores/connection";
+  import { remoteCursors, removeRemoteCursor } from "../../stores/index";
   import type { RemoteCursorState } from "../../../shared/types/index";
 
   // Props
