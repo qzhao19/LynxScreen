@@ -6,7 +6,7 @@
     isConnecting,
     currentRole,
     errorMessage
-  } from "../../stores/connection";
+  } from "../../stores/index";
   import { ConnectionPhase, PeerRole } from "../../../shared/types/index";
   import { StatusIndicator } from "../ui";
 
