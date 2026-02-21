@@ -24,13 +24,13 @@
 
   function handleToggleMicrophone() {
     const result = toggleMicrophone();
-    showToast($isMicrophoneEnabled ? "Microphone on" : "Microphone off", "info");
+    showToast(result ? "Microphone on" : "Microphone off", "info");
     onToggleMicrophone?.({ enabled: result });
   }
 
   function handleToggleDisplay() {
     const result = toggleDisplayStream();
-    showToast($isDisplayEnabled ? "Display sharing on" : "Display sharing off", "info");
+    showToast(result ? "Display sharing on" : "Display sharing off", "info");
     onToggleDisplay?.({ enabled: result });
   }
 
