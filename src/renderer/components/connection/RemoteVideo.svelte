@@ -35,9 +35,22 @@
     cursorSyncSetup = true;
   }
 
+  $: if (!$isConnected) {
+    cursorSyncSetup = false;
+  }
+
+  // Generate a fixed cursor ID
+  const localCursorId = crypto.randomUUID();
+  let lastCursorSendTime = 0;
+  const CURSOR_THROTTLE_MS = 50;
+
   function handleMouseMove(event: MouseEvent) {
     if (!$isConnected || !enableCursorSync || !$cursorChannelsReady) return;
     if (!containerElement) return;
+
+    const now = Date.now();
+    if (now - lastCursorSendTime < CURSOR_THROTTLE_MS) return;
+    lastCursorSendTime = now;
 
     const rect = containerElement.getBoundingClientRect();
     const x = (event.clientX - rect.left) / rect.width;
@@ -46,7 +59,7 @@
     // Only send if within bounds
     if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
       const cursorData = {
-        id: crypto.randomUUID(),
+        id: localCursorId,
         name: $appSettings.username || "Anonymous",
         color: "#3B82F6",
         x,
