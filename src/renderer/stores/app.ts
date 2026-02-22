@@ -70,10 +70,18 @@ export function resetSettings(): void {
   showToast("Settings reset to default", "info");
 }
 
+const MAX_TOKENS = 5;
 // Show toast notification
 export function showToast(message: string, type: ToastMessage["type"] = "info") {
   const id = crypto.randomUUID();
-  toasts.update(t => [...t, { id, message, type }]);
+  // toasts.update(t => [...t, { id, message, type }]);
+  toasts.update(t => {
+    const updated = [...t, {id, message, type}];
+    if (updated.length > MAX_TOKENS) {
+      return updated.slice(updated.length - MAX_TOKENS);
+    }
+    return updated;
+  });
   
   setTimeout(() => {
     toasts.update(t => t.filter(toast => toast.id !== id));
@@ -119,7 +127,8 @@ export function formatDuration(seconds: number): string {
   const mins = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
   
-  return [hrs, mins, secs]
-    .map(v => v.toString().padStart(2, "0"))
-    .join(":");
+  if (hrs > 0) {
+    return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
