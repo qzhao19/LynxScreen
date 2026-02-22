@@ -11,6 +11,7 @@ import { showToast, appSettings } from "./app";
 // ============== Connection Manager Singleton ==============
 
 let connectionManagerInstance: ConnectionManager | null = null;
+let cursorSyncInitialized = false;
 
 function getConnectionManager(): ConnectionManager {
   if (!connectionManagerInstance) {
@@ -127,28 +128,34 @@ function updateMediaStates(): void {
 }
 
 let cursorCheckInterval: ReturnType<typeof setInterval> | null = null;
+let cursorCheckTimeout: ReturnType<typeof setTimeout> | null = null;
 
-function startCursorChannelCheck(): void {
+function stopCursorChannelCheck(): void {
   if (cursorCheckInterval) {
     clearInterval(cursorCheckInterval);
+    cursorCheckInterval = null;
   }
+
+  if (cursorCheckTimeout) {
+    clearTimeout(cursorCheckTimeout);
+    cursorCheckTimeout = null;
+  }
+}
+
+function startCursorChannelCheck(): void {
+  // Clear any previous timers
+  stopCursorChannelCheck();
   
   cursorCheckInterval = setInterval(() => {
     if (connectionManagerInstance?.areCursorChannelsReady()) {
       cursorChannelsReady.set(true);
-      if (cursorCheckInterval) {
-        clearInterval(cursorCheckInterval);
-        cursorCheckInterval = null;
-      }
+      stopCursorChannelCheck();
     }
   }, 100);
   
   // Timeout after 10 seconds
-  setTimeout(() => {
-    if (cursorCheckInterval) {
-      clearInterval(cursorCheckInterval);
-      cursorCheckInterval = null;
-    }
+  cursorCheckTimeout = setTimeout(() => {
+    stopCursorChannelCheck();
   }, 10000);
 }
 
@@ -162,6 +169,8 @@ function resetConnectionStores(): void {
   isDisplayEnabled.set(false);
   hasAudioInput.set(false);
   errorMessage.set(null);
+  stopCursorChannelCheck();
+  cursorSyncInitialized = false;
 }
 
 // ============== Connection Actions ==============
@@ -329,6 +338,7 @@ export function toggleDisplayStream(): boolean {
  */
 export function setupCursorSync(): void {
   if (!connectionManagerInstance) return;
+  if (cursorSyncInitialized) return;
   
   // Enable cursor sync
   connectionManagerInstance.toggleRemoteCursors(true);
@@ -341,6 +351,8 @@ export function setupCursorSync(): void {
       return newCursors;
     });
   });
+
+  cursorSyncInitialized = false;
 }
 
 /**
