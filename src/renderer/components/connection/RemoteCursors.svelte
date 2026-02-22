@@ -11,14 +11,33 @@
 
   // Track cursor timestamps
   let cursorTimestamps = new Map<string, number>();
+  let previousCursorPositions = new Map<string, string>();
   let cleanupInterval: ReturnType<typeof setInterval>;
 
   $: cursorsArray = Array.from($remoteCursors.values());
 
-  // Update timestamp when cursor updates
+  // Update timestamp only when cursor is new or position changed
   $: {
-    cursorsArray.forEach(cursor => {
-      cursorTimestamps.set(cursor.id, Date.now());
+    const currentKeys = new Set<string>();
+    
+    cursorsArray.forEach((cursor) => {
+      currentKeys.add(cursor.id);
+
+      const posKey = `${cursor.x.toFixed(4)},${cursor.y.toFixed(4)}`;
+      const prevPosKey = previousCursorPositions.get(cursor.id);
+
+      if (posKey !== prevPosKey) {
+        cursorTimestamps.set(cursor.id, Date.now());
+        previousCursorPositions.set(cursor.id, posKey);
+      }
+    });
+
+    // Cleanup entries for removed cursors
+    cursorTimestamps.forEach((_, id) => {
+      if (!currentKeys.has(id)) {
+        cursorTimestamps.delete(id);
+        previousCursorPositions.delete(id);
+      }
     });
   }
 
