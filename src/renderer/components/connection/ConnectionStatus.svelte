@@ -118,7 +118,7 @@
           <div class="detail-row">
             <span class="detail-label">ICE:</span>
             <span class="detail-value" class:ice-connected={$iceConnectionState === "connected"}>
-              {iceStateText[$iceConnectionState]}
+              {iceStateText[$iceConnectionState] ?? "unknown"}
             </span>
           </div>
         {/if}
