@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { isConnected } from "../../stores/index";
+  import { isConnected, formatDuration } from "../../stores/index";
 
   // Props
   export let startTime: Date | null = null;
@@ -10,16 +10,13 @@
   let interval: ReturnType<typeof setInterval> | null = null;
   let internalStartTime: Date | null = null;
 
-  // Format duration as HH:MM:SS or MM:SS
-  function formatDuration(seconds: number): string {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    if (hours > 0) {
-      return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  // Sync when startTime prop changes
+  $: if (startTime && startTime !== internalStartTime) {
+    internalStartTime = startTime;
+    // If timer running, update displayed duration immediately
+    if (interval) {
+      duration = Math.floor((Date.now() - internalStartTime.getTime()) / 1000);
     }
-    return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }
 
   function startTimer() {
