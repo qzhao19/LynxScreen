@@ -352,7 +352,7 @@ export function setupCursorSync(): void {
     });
   });
 
-  cursorSyncInitialized = false;
+  cursorSyncInitialized = true;
 }
 
 /**
