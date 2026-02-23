@@ -25,8 +25,8 @@
   let cursorSyncSetup = false;
 
   // Attach stream to video element
-  $: if (videoElement && $remoteStream) {
-    videoElement.srcObject = $remoteStream;
+  $: if (videoElement) {
+    videoElement.srcObject = $remoteStream ?? null;
   }
 
   // Setup cursor sync when connected and channels ready
