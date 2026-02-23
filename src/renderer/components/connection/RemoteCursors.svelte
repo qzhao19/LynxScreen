@@ -48,6 +48,7 @@
       if (now - timestamp > cursorTimeout) {
         removeRemoteCursor(id);
         cursorTimestamps.delete(id);
+        previousCursorPositions.delete(id);
       }
     });
   }
