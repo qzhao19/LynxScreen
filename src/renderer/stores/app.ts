@@ -70,15 +70,15 @@ export function resetSettings(): void {
   showToast("Settings reset to default", "info");
 }
 
-const MAX_TOKENS = 5;
+const MAX_TOASTS = 5;
 // Show toast notification
 export function showToast(message: string, type: ToastMessage["type"] = "info") {
   const id = crypto.randomUUID();
   // toasts.update(t => [...t, { id, message, type }]);
   toasts.update(t => {
     const updated = [...t, {id, message, type}];
-    if (updated.length > MAX_TOKENS) {
-      return updated.slice(updated.length - MAX_TOKENS);
+    if (updated.length > MAX_TOASTS) {
+      return updated.slice(updated.length - MAX_TOASTS);
     }
     return updated;
   });
