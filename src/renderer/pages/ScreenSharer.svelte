@@ -27,6 +27,7 @@
       startSessionTimer();
       showToast("Session created", "success");
       navigateTo("active-sharing");
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       showToast("Failed to create session", "error");
     } finally {

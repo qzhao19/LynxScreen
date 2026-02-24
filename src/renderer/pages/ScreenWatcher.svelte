@@ -22,6 +22,8 @@
       // Simulate connection delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       showToast("Connected successfully!", "success");
+      
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       showToast("Connection failed, please check URL", "error");
     } finally {
