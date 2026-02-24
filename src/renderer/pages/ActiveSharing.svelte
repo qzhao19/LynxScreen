@@ -29,6 +29,7 @@
       
       sessionState.update(s => ({ ...s, status: "connected" }));
       showToast("Watcher connected", "success");
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       showToast("Connection failed", "error");
     } finally {

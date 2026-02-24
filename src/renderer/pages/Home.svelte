@@ -41,7 +41,7 @@
 
     <!-- Options grid -->
     <div class="options-grid">
-      {#each options as option}
+      {#each options as option(option.id)}
         <Card clickable on:click={() => navigateTo(option.page)}>
           <div class="option-content">
             <IconCircle color={option.iconColor}>

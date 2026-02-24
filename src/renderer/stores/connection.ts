@@ -171,6 +171,7 @@ function resetConnectionStores(): void {
   errorMessage.set(null);
   stopCursorChannelCheck();
   cursorSyncInitialized = false;
+   currentRole.set(null);
 }
 
 // ============== Connection Actions ==============
