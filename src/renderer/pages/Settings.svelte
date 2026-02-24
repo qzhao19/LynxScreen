@@ -5,15 +5,22 @@
   import { appSettings, saveSettings, resetSettings, showToast } from "../stores/app";
   import type { IceServerConfig, AppSettings } from "../../shared/types/index";
   import { DEFAULT_APP_SETTINGS } from "../../shared/constants/index";
+  
+  // Extend IceServerConfig with a stable local ID for keyed #each rendering
+  type IceServerEntry = IceServerConfig & { _id: string };
+  
+  function toEntries(servers: IceServerConfig[]): IceServerEntry[] {
+    return servers.map(s => ({ ...s, _id: crypto.randomUUID() }));
+  }
 
   // Local copy of settings for editing - initialize with default values to prevent undefined errors
   let localSettings: AppSettings = { ...DEFAULT_APP_SETTINGS };
-  let iceServers: IceServerConfig[] = DEFAULT_APP_SETTINGS.iceServers.map(s => ({ ...s }));
+  let iceServers: IceServerEntry[] = toEntries(DEFAULT_APP_SETTINGS.iceServers);
 
   // Initialize with actual store values when component mounts
   onMount(() => {
     localSettings = { ...$appSettings };
-    iceServers = $appSettings.iceServers.map(s => ({ ...s }));
+    iceServers = toEntries($appSettings.iceServers);
   });
 
   // Re-sync after reset - use tick to ensure store has updated
@@ -22,12 +29,19 @@
     // Wait for store to update before re-initializing local state
     await tick();
     localSettings = { ...$appSettings };
-    iceServers = $appSettings.iceServers.map(s => ({ ...s }));
+    iceServers = toEntries($appSettings.iceServers);
   }
 
   function handleSave() {
-    // Validate ICE servers
-    const validIceServers = iceServers.filter(server => server.urls.trim() !== "");
+    // Validate ICE servers,strip local _id before saving
+    const validIceServers = iceServers
+      .filter(server => server.urls.trim() !== "")
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .map(({ _id, ...rest }) => ({
+        ...rest,
+        authUsername: rest.authUsername?.trim() || undefined,
+        credential: rest.credential?.trim() || undefined,
+      }));
     
     if (validIceServers.length === 0) {
       showToast("At least one ICE server is required", "error");
@@ -50,7 +64,7 @@
   // }
 
   function addIceServer() {
-    iceServers = [...iceServers, { urls: "", authUsername: "", credential: "" }];
+    iceServers = [...iceServers, { urls: "", authUsername: undefined, credential: undefined, _id: crypto.randomUUID() }];
   }
 
   function removeIceServer(index: number) {
@@ -61,7 +75,7 @@
     iceServers = iceServers.filter((_, i) => i !== index);
   }
 
-  function updateIceServer(index: number, field: keyof IceServerConfig, value: string) {
+  function updateIceServer(index: number, field: keyof IceServerEntry, value: string) {
     iceServers = iceServers.map((server, i) => 
       i === index ? { ...server, [field]: value } : server
     );
@@ -133,7 +147,7 @@
         </p>
 
         <div class="ice-servers-list">
-          {#each iceServers as server, index}
+          {#each iceServers as server, index(server._id)}
             <div class="ice-server-item">
               <div class="ice-server-header">
                 <span class="ice-server-number">Server {index + 1}</span>
@@ -156,7 +170,7 @@
                   id="server-url-{index}"
                   type="text"
                   value={server.urls}
-                  on:input={(e) => updateIceServer(index, 'urls', e.currentTarget.value)}
+                  on:input={(e) => updateIceServer(index, "urls", e.currentTarget.value)}
                   placeholder="stun:stun.example.com:19302"
                   class="input"
                 />
@@ -169,7 +183,7 @@
                     id="server-username-{index}"
                     type="text"
                     value={server.authUsername || ''}
-                    on:input={(e) => updateIceServer(index, 'authUsername', e.currentTarget.value)}
+                    on:input={(e) => updateIceServer(index, "authUsername", e.currentTarget.value)}
                     placeholder="Username"
                     class="input"
                   />
@@ -181,7 +195,7 @@
                     id="server-credential-{index}"
                     type="password"
                     value={server.credential || ''}
-                    on:input={(e) => updateIceServer(index, 'credential', e.currentTarget.value)}
+                    on:input={(e) => updateIceServer(index, "credential", e.currentTarget.value)}
                     placeholder="Password"
                     class="input"
                   />
