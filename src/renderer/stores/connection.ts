@@ -168,10 +168,9 @@ function resetConnectionStores(): void {
   isMicrophoneEnabled.set(false);
   isDisplayEnabled.set(false);
   hasAudioInput.set(false);
-  errorMessage.set(null);
   stopCursorChannelCheck();
   cursorSyncInitialized = false;
-   currentRole.set(null);
+  currentRole.set(null);
 }
 
 // ============== Connection Actions ==============
@@ -200,12 +199,14 @@ export async function startSharing(username: string): Promise<string | null> {
     currentRole.set(PeerRole.SCREEN_SHARER);
     const url = await manager.startSharing(username, config);
     
-    if (url) {
+    if (!url) {
+      currentRole.set(null);
       return url;
     }
     
     return null;
   } catch (error) {
+    currentRole.set(null);
     const message = error instanceof Error ? error.message : "Failed to start sharing";
     errorMessage.set(message);
     showToast(message, "error");
@@ -220,6 +221,7 @@ export async function startSharing(username: string): Promise<string | null> {
  */
 export async function acceptAnswer(): Promise<boolean> {
   isLoading.set(true);
+  errorMessage.set(null);
   
   try {
     const manager = getConnectionManager();
@@ -261,8 +263,14 @@ export async function joinSession(
     currentRole.set(PeerRole.SCREEN_WATCHER);
     const url = await manager.joinSession(username, videoElement, config);
     
+    if (!url) {
+      currentRole.set(null);
+      return null;
+    }
+    
     return url;
   } catch (error) {
+    currentRole.set(null);
     const message = error instanceof Error ? error.message : "Failed to join session";
     errorMessage.set(message);
     showToast(message, "error");
@@ -276,9 +284,10 @@ export async function joinSession(
  * Disconnects the current session
  */
 export async function disconnect(): Promise<void> {
+  if (!connectionManagerInstance) return;
+  
   try {
-    const manager = getConnectionManager();
-    await manager.disconnect();
+    await connectionManagerInstance.disconnect();
     currentRole.set(null);
   } catch (error) {
     console.error("Disconnect error:", error);
@@ -296,6 +305,7 @@ export async function resetConnection(): Promise<void> {
   connectionPhase.set(ConnectionPhase.IDLE);
   currentRole.set(null);
   resetConnectionStores();
+  errorMessage.set(null);
 }
 
 // ============== Media Control Actions ==============
@@ -316,10 +326,10 @@ export function toggleMicrophone(): boolean {
  */
 export function setMicrophoneEnabled(enabled: boolean): void {
   if (!connectionManagerInstance) return;
-  
   connectionManagerInstance.setMicrophoneEnabled(enabled);
-  isMicrophoneEnabled.set(enabled);
+  isMicrophoneEnabled.set(connectionManagerInstance.isMicrophoneActive());
 }
+
 
 /**
  * Toggles display stream on/off
@@ -400,10 +410,10 @@ export function areCursorChannelsReady(): boolean {
  */
 export function setDisplayStreamEnabled(enabled: boolean): void {
   if (!connectionManagerInstance) return;
-  
   connectionManagerInstance.setDisplayStreamEnabled(enabled);
-  isDisplayEnabled.set(enabled);
+  isDisplayEnabled.set(connectionManagerInstance.isDisplayActive());
 }
+
 
 /**
  * Gets audio stream
