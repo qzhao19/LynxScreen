@@ -48,6 +48,15 @@
   .active .text {
     color: var(--color-accent-green);
   }
+  
+  .warning .dot {
+      background: var(--color-accent-yellow, #f59e0b);
+      box-shadow: 0 0 8px var(--color-accent-yellow, #f59e0b);
+    }
+  
+  .warning .text {
+    color: var(--color-accent-yellow, #f59e0b);
+  }
 
   .error .dot {
     background: var(--color-accent-red);
