@@ -4,7 +4,7 @@ import type {
   SessionState, 
   ToastMessage, 
 } from "../shared/types/app";
-import { AppSettings } from "../../shared/types/index";
+import type { AppSettings } from "../../shared/types/index";
 import { DEFAULT_APP_SETTINGS } from "../../shared/constants/index";
 
 // Current page store
@@ -39,8 +39,8 @@ function loadSettings(): AppSettings {
         iceServers: Array.isArray(parsed.iceServers) && parsed.iceServers.length > 0
           ? parsed.iceServers.map((server: Partial<typeof DEFAULT_APP_SETTINGS.iceServers[0]>) => ({
               urls: server.urls || "",
-              authUsername: server.authUsername || "",
-              credential: server.credential || ""
+              authUsername: server.authUsername || undefined,
+              credential: server.credential || undefined
             }))
           : DEFAULT_APP_SETTINGS.iceServers
       };
