@@ -201,10 +201,10 @@ export async function startSharing(username: string): Promise<string | null> {
     
     if (!url) {
       currentRole.set(null);
-      return url;
+      return null;
     }
     
-    return null;
+    return url;
   } catch (error) {
     currentRole.set(null);
     const message = error instanceof Error ? error.message : "Failed to start sharing";
