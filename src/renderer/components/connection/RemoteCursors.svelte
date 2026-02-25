@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import { fade } from "svelte/transition";
+  import { SvelteMap, SvelteSet } from "svelte/reactivity";
   import { remoteCursors, removeRemoteCursor } from "../../stores/index";
   import type { RemoteCursorState } from "../../../shared/types/index";
 
@@ -10,15 +11,15 @@
   export let cursorTimeout = 5000;
 
   // Track cursor timestamps
-  let cursorTimestamps = new Map<string, number>();
-  let previousCursorPositions = new Map<string, string>();
+  let cursorTimestamps = new SvelteMap<string, number>();
+  let previousCursorPositions = new SvelteMap<string, string>();
   let cleanupInterval: ReturnType<typeof setInterval>;
 
   $: cursorsArray = Array.from($remoteCursors.values());
 
   // Update timestamp only when cursor is new or position changed
   $: {
-    const currentKeys = new Set<string>();
+    const currentKeys = new SvelteSet<string>();
     
     cursorsArray.forEach((cursor) => {
       currentKeys.add(cursor.id);
