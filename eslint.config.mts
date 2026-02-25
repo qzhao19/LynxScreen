@@ -1,29 +1,31 @@
 import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+import svelte from "eslint-plugin-svelte";
+import svelteParser from "svelte-eslint-parser";
 
 export default tseslint.config(
   {
     ignores: [
-      "**/dist/**",           
-      "**/dist-electron/**",  
-      "**/build/**",          
-      "**/out/**",            
-      "**/node_modules/**",   
-    ]
+      "**/dist/**",
+      "**/dist-electron/**",
+      "**/build/**",
+      "**/out/**",
+      "**/node_modules/**",
+    ],
   },
-  [{ 
-    files: ["**/*.{js,mjs,cjs,ts,mts,cts}"], 
-    plugins: { js }, 
+  {
+    files: ["**/*.{js,mjs,cjs,ts,mts,cts}"],
+    plugins: { js },
     extends: [js.configs.recommended],
-    languageOptions: { 
-      globals: globals.node 
+    languageOptions: {
+      globals: globals.node,
     },
     rules: {
-      "semi": ["error", "always"],
-      "semi-spacing": ["error", { "before": false, "after": true }],
-      "quotes": ["error", "double"]
-    }
+      semi: ["error", "always"],
+      "semi-spacing": ["error", { before: false, after: true }],
+      quotes: ["error", "double"],
+    },
   },
   ...tseslint.configs.recommended,
   {
@@ -32,4 +34,19 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
-]);
+  {
+    files: ["**/*.svelte"],
+    plugins: { svelte },
+    extends: [...svelte.configs.recommended],
+    languageOptions: {
+      globals: globals.browser,
+      parser: svelteParser,
+      parserOptions: {
+        parser: tseslint.parser,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+);
