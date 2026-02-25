@@ -96,7 +96,6 @@
   bind:this={containerElement}
   on:mousemove={handleMouseMove}
 >
-  <!-- svelte-ignore a11y-media-has-caption -->
   <video
     bind:this={videoElement}
     autoplay
