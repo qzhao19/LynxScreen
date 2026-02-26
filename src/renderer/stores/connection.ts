@@ -66,26 +66,86 @@ export const canAcceptAnswer = derived(
 );
 
 // Phase display text mapping
-export const phaseDisplayText: Record<ConnectionPhase, string> = {
-  [ConnectionPhase.IDLE]: "Ready",
-  [ConnectionPhase.INITIALIZING]: "Initializing...",
-  [ConnectionPhase.WAITING_FOR_OFFER]: "Waiting for offer...",
-  [ConnectionPhase.OFFER_CREATED]: "Offer created",
-  [ConnectionPhase.WAITING_FOR_ANSWER]: "Waiting for answer...",
-  [ConnectionPhase.ANSWER_CREATED]: "Answer created",
-  [ConnectionPhase.CONNECTING]: "Connecting...",
-  [ConnectionPhase.CONNECTED]: "Connected",
-  [ConnectionPhase.DISCONNECTED]: "Disconnected",
-  [ConnectionPhase.ERROR]: "Error"
+export type PhaseDisplayConfig = {
+  text: string;
+  status: "ready" | "active" | "warning";
+  icon: string;
 };
 
+// Phase display configurations
+export const phaseDisplayConfig: Record<ConnectionPhase, { 
+  text: string; 
+  status: "ready" | "active" | "warning";
+  icon: string;
+}> = {
+  [ConnectionPhase.IDLE]: { 
+    text: "Ready", 
+    status: "ready",
+    icon: "⚪"
+  },
+  [ConnectionPhase.INITIALIZING]: { 
+    text: "Initializing...", 
+    status: "warning",
+    icon: "🔄"
+  },
+  [ConnectionPhase.WAITING_FOR_OFFER]: { 
+    text: "Waiting for offer...", 
+    status: "warning",
+    icon: "⏳"
+  },
+  [ConnectionPhase.OFFER_CREATED]: { 
+    text: "Offer created", 
+    status: "ready",
+    icon: "📤"
+  },
+  [ConnectionPhase.WAITING_FOR_ANSWER]: { 
+    text: "Waiting for answer...", 
+    status: "warning",
+    icon: "⏳"
+  },
+  [ConnectionPhase.ANSWER_CREATED]: { 
+    text: "Answer created", 
+    status: "ready",
+    icon: "📥"
+  },
+  [ConnectionPhase.CONNECTING]: { 
+    text: "Connecting...", 
+    status: "warning",
+    icon: "🔗"
+  },
+  [ConnectionPhase.CONNECTED]: { 
+    text: "Connected", 
+    status: "active",
+    icon: "✅"
+  },
+  [ConnectionPhase.DISCONNECTED]: { 
+    text: "Disconnected", 
+    status: "ready",
+    icon: "🔌"
+  },
+  [ConnectionPhase.ERROR]: { 
+    text: "Error", 
+    status: "warning",
+    icon: "❌"
+  }
+};
+
+// Phase display text mapping (derived from config)
+export const phaseDisplayText: Record<ConnectionPhase, string> = Object.fromEntries(
+  Object.entries(phaseDisplayConfig).map(([key, value]) => [key, value.text])
+) as Record<ConnectionPhase, string>;
+
 // ============== Setup Callbacks ==============
+
+let isResetting = false;
 
 function setupConnectionCallbacks(): void {
   if (!connectionManagerInstance) return;
 
   connectionManagerInstance.setCallbacks({
     onPhaseChange: (phase: ConnectionPhase) => {
+      if (isResetting) return;
+
       connectionPhase.set(phase);
       
       if (phase === ConnectionPhase.CONNECTED) {
@@ -93,8 +153,12 @@ function setupConnectionCallbacks(): void {
         startCursorChannelCheck();
       }
       
-      if (phase === ConnectionPhase.DISCONNECTED || phase === ConnectionPhase.ERROR) {
-        resetConnectionStores();
+      if (phase === ConnectionPhase.DISCONNECTED) {
+        resetConnectionStores({ clearError: true });
+      }
+      
+      if (phase === ConnectionPhase.ERROR) {
+        resetConnectionStores({ clearError: true });
       }
     },
     
@@ -142,24 +206,36 @@ function stopCursorChannelCheck(): void {
   }
 }
 
+const CURSOR_CHECK_INTERVAL_MS = 100;
+const CURSOR_CHECK_TIMEOUT_MS = 10000;
+
 function startCursorChannelCheck(): void {
   // Clear any previous timers
   stopCursorChannelCheck();
+  
+  // Reset state for a new check
+  cursorChannelsReady.set(false);
   
   cursorCheckInterval = setInterval(() => {
     if (connectionManagerInstance?.areCursorChannelsReady()) {
       cursorChannelsReady.set(true);
       stopCursorChannelCheck();
     }
-  }, 100);
+  }, CURSOR_CHECK_INTERVAL_MS);
   
   // Timeout after 10 seconds
   cursorCheckTimeout = setTimeout(() => {
     stopCursorChannelCheck();
-  }, 10000);
+    
+    // Only notify if connected
+    if (connectionManagerInstance?.isConnected()) {
+      const message = "Cursor sync is not available (data channels not ready).";
+      showToast(message, "info");
+    }
+  }, CURSOR_CHECK_TIMEOUT_MS);
 }
 
-function resetConnectionStores(): void {
+function resetConnectionStores(options: { clearError?: boolean } = {}): void {
   generatedUrl.set("");
   remoteStream.set(null);
   iceConnectionState.set(null);
@@ -171,6 +247,10 @@ function resetConnectionStores(): void {
   stopCursorChannelCheck();
   cursorSyncInitialized = false;
   currentRole.set(null);
+  
+  if (options.clearError) {
+    errorMessage.set(null);
+  }
 }
 
 // ============== Connection Actions ==============
@@ -298,14 +378,20 @@ export async function disconnect(): Promise<void> {
  * Resets the connection manager completely
  */
 export async function resetConnection(): Promise<void> {
-  if (connectionManagerInstance) {
-    await connectionManagerInstance.reset();
-    setupConnectionCallbacks();
+  isResetting = true; 
+
+  try {
+    if (connectionManagerInstance) {
+      await connectionManagerInstance.reset();
+      setupConnectionCallbacks();
+    }
+  } finally {
+    connectionPhase.set(ConnectionPhase.IDLE);
+    currentRole.set(null);
+    resetConnectionStores();
+    errorMessage.set(null);
+    isResetting = false;
   }
-  connectionPhase.set(ConnectionPhase.IDLE);
-  currentRole.set(null);
-  resetConnectionStores();
-  errorMessage.set(null);
 }
 
 // ============== Media Control Actions ==============
@@ -401,9 +487,7 @@ export function areCursorChannelsReady(): boolean {
   return connectionManagerInstance?.areCursorChannelsReady() ?? false;
 }
 
-
 // ============== Media Control Actions ==============
-
 
 /**
  * Sets display stream enabled state
@@ -413,7 +497,6 @@ export function setDisplayStreamEnabled(enabled: boolean): void {
   connectionManagerInstance.setDisplayStreamEnabled(enabled);
   isDisplayEnabled.set(connectionManagerInstance.isDisplayActive());
 }
-
 
 /**
  * Gets audio stream
