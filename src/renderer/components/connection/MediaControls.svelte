@@ -7,6 +7,7 @@
     isSharer,
     toggleMicrophone,
     toggleDisplayStream,
+    disconnect,
     showToast
   } from "../../stores/index";
 
@@ -23,18 +24,24 @@
   export let onDisconnect: (() => void) | undefined = undefined;
 
   function handleToggleMicrophone() {
-    const result = toggleMicrophone();
-    showToast(result ? "Microphone on" : "Microphone off", "info");
-    onToggleMicrophone?.({ enabled: result });
+    if (!$isConnected) return;
+    toggleMicrophone();
+    const enabled = $isMicrophoneEnabled;
+    showToast(enabled ? "Microphone on" : "Microphone off", "info");
+    onToggleMicrophone?.({ enabled });
   }
 
   function handleToggleDisplay() {
-    const result = toggleDisplayStream();
-    showToast(result ? "Display sharing on" : "Display sharing off", "info");
-    onToggleDisplay?.({ enabled: result });
+    if (!$isConnected) return;
+    toggleDisplayStream();
+    const enabled = $isDisplayEnabled;
+    showToast(enabled ? "Display sharing on" : "Display sharing off", "info");
+    onToggleDisplay?.({ enabled });
   }
 
-  function handleDisconnect() {
+  async function handleDisconnect() {
+    if (!$isConnected) return;
+    await disconnect();
     onDisconnect?.();
   }
 </script>
@@ -104,6 +111,7 @@
     <button
       class="control-button disconnect"
       on:click={handleDisconnect}
+      disabled={!$isConnected}
       aria-label="Disconnect"
       title="Disconnect session"
     >

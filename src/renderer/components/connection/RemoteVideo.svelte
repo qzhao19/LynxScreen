@@ -7,9 +7,9 @@
     sendCursorUpdate,
     setupCursorSync,
     cursorChannelsReady,
-    appSettings
+    appSettings,
+    phaseDisplayText
   } from "../../stores/index";
-  import { ConnectionPhase } from "../../../shared/types/index";
 
   // Props
   export let enableCursorSync = true;
@@ -26,7 +26,12 @@
 
   // Attach stream to video element
   $: if (videoElement) {
-    videoElement.srcObject = $remoteStream ?? null;
+    if ($remoteStream) {
+      videoElement.srcObject = $remoteStream;
+      videoElement.play().catch(error => console.warn("Autoplay blocked:", error));
+    } else {
+      videoElement.srcObject = null;
+    }
   }
 
   // Setup cursor sync when connected and channels ready
@@ -44,6 +49,40 @@
   let lastCursorSendTime = 0;
   const CURSOR_THROTTLE_MS = 50;
 
+  function getContainedVideoRect(video: HTMLVideoElement): {
+    offsetX: number;
+    offsetY: number;
+    renderWidth: number;
+    renderHeight: number;
+  } | null {
+
+    // Get actual video resolution for the visible area after cropping
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+
+    if (!vw || !vh) return null;
+
+    const rect = video.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    
+    const videoRatio = vw / vh;
+    const boxRatio = rect.width / rect.height;
+
+    let renderWidth = rect.width;
+    let renderHeight = rect.height;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (videoRatio > boxRatio) {
+      renderHeight = rect.width / videoRatio;
+      offsetY = (rect.height - renderHeight) / 2;
+    } else {
+      renderWidth = rect.height * videoRatio;
+      offsetX = (rect.width - renderWidth) / 2;
+    }
+    return { offsetX, offsetY, renderWidth, renderHeight };
+  }
+
   function handleMouseMove(event: MouseEvent) {
     if (!$isConnected || !enableCursorSync || !$cursorChannelsReady) return;
     if (!containerElement) return;
@@ -52,23 +91,27 @@
     if (now - lastCursorSendTime < CURSOR_THROTTLE_MS) return;
     lastCursorSendTime = now;
 
-    const rect = containerElement.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / rect.width;
-    const y = (event.clientY - rect.top) / rect.height;
+    const videoRect = getContainedVideoRect(videoElement);
+    if (!videoRect) return;
 
-    // Only send if within bounds
-    if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
-      const cursorData = {
-        id: localCursorId,
-        name: $appSettings.username || "Anonymous",
-        color: "#3B82F6",
-        x,
-        y
-      };
-      
-      sendCursorUpdate(cursorData);
-      onCursorMove?.({ x, y });
-    }
+    const { offsetX, offsetY, renderWidth, renderHeight } = videoRect;
+    const rect = videoElement.getBoundingClientRect();
+
+    const x = (event.clientX - rect.left - offsetX) / renderWidth;
+    const y = (event.clientY - rect.top - offsetY) / renderHeight;
+
+    if (x < 0 || x > 1 || y < 0 || y > 1) return;
+    
+    const cursorData = {
+      id: localCursorId,
+      name: $appSettings.username || "Anonymous",
+      color: "#3B82F6",
+      x,
+      y
+    };
+    
+    sendCursorUpdate(cursorData);
+    onCursorMove?.({ x, y });
   }
 
   onMount(() => {
@@ -78,15 +121,8 @@
   onDestroy(() => {
     cursorSyncSetup = false;
   });
-
-  // Phase display text
-  const phaseText: Partial<Record<ConnectionPhase, string>> = {
-    [ConnectionPhase.INITIALIZING]: "Initializing...",
-    [ConnectionPhase.CONNECTING]: "Connecting...",
-    [ConnectionPhase.ANSWER_CREATED]: "Waiting for host...",
-  };
-
-  $: overlayText = phaseText[$connectionPhase] || "Connecting...";
+  
+  $: overlayText = phaseDisplayText[$connectionPhase] || "Connecting...";
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -103,7 +139,7 @@
     class="remote-video"
   ></video>
 
-  {#if showOverlay && !$isConnected}
+  {#if showOverlay && !$isConnected && !$remoteStream}
     <div class="video-overlay">
       <span class="spinner"></span>
       <p class="overlay-text">{overlayText}</p>

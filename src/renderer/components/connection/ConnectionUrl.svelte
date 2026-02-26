@@ -14,8 +14,20 @@
   export let onCopy: ((data: { url: string }) => void) | undefined = undefined;
   export let onChange: ((data: { url: string }) => void) | undefined = undefined;
 
-  // Use prop or store
-  $: displayUrl = url || $generatedUrl;
+  // Internal editable value for non-readonly mode
+  let editableUrl = "";
+  let lastExternalUrl: string | undefined = undefined;
+
+  // Sync from props/store
+  $: displayUrl = readonly ? (url || $generatedUrl) : editableUrl;
+
+  // Initialize editable URL when url prop or generated URL changes
+  $: if (!readonly && url !== lastExternalUrl) {
+    editableUrl = url;
+    lastExternalUrl = url;
+  } else if (!readonly && !editableUrl && !url && $generatedUrl) {
+    editableUrl = $generatedUrl;
+  }
 
   let isCopied = false;
   let copyTimeout: ReturnType<typeof setTimeout>;
@@ -44,6 +56,7 @@
 
   function handleInput(event: Event) {
     const target = event.target as HTMLInputElement;
+    editableUrl = target.value;
     onChange?.({ url: target.value });
   }
 </script>

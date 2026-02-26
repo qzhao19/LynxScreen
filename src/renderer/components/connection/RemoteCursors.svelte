@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { fade } from "svelte/transition";
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
   import { remoteCursors, removeRemoteCursor } from "../../stores/index";
@@ -55,7 +55,9 @@
   }
 
   // Start cleanup interval
-  cleanupInterval = setInterval(cleanupStaleCursors, 1000);
+  onMount(() => {
+    cleanupInterval = setInterval(cleanupStaleCursors, 1000);
+  });
 
   onDestroy(() => {
     clearInterval(cleanupInterval);

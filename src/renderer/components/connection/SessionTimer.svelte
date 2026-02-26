@@ -10,22 +10,18 @@
   let interval: ReturnType<typeof setInterval> | null = null;
   let internalStartTime: Date | null = null;
 
-  // Sync when startTime prop changes
-  $: if (startTime && startTime !== internalStartTime) {
+  // Sync prop only when timer is actively running (not during reconnect gap)
+  $: if (startTime && interval && startTime.getTime() !== internalStartTime?.getTime()) {
     internalStartTime = startTime;
-    // If timer running, update displayed duration immediately
-    if (interval) {
-      duration = Math.floor((Date.now() - internalStartTime.getTime()) / 1000);
-    }
+    duration = Math.floor((Date.now() - internalStartTime.getTime()) / 1000);
   }
 
   function startTimer() {
     if (interval) return;
-    
-    if (!internalStartTime) {
-        internalStartTime = startTime || new Date();
-    }
-    
+    // Always use fresh time on start — never reuse stale internalStartTime
+    internalStartTime = new Date();
+    duration = 0;
+
     interval = setInterval(() => {
       if (internalStartTime) {
         duration = Math.floor((Date.now() - internalStartTime.getTime()) / 1000);
@@ -52,12 +48,12 @@
   }
 
   // Stop when disconnected
-  $: if (autoStart && !$isConnected && interval) {
-    stopTimer();
+  $: if (!$isConnected && (interval || internalStartTime)) {
+    resetTimer();
   }
 
   onMount(() => {
-    if (startTime) {
+    if (autoStart && $isConnected) {
       startTimer();
     }
   });

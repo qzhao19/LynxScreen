@@ -5,72 +5,15 @@
     isConnected, 
     isConnecting,
     currentRole,
-    errorMessage
+    errorMessage,
+    phaseDisplayConfig
   } from "../../stores/index";
-  import { ConnectionPhase, PeerRole } from "../../../shared/types/index";
+  import { PeerRole } from "../../../shared/types/index";
   import { StatusIndicator } from "../ui";
 
   // Props
   export let showDetails = false;
   export let compact = false;
-
-  // Phase display configurations
-  const phaseConfig: Record<ConnectionPhase, { 
-    text: string; 
-    status: "ready" | "active" | "warning";
-    icon: string;
-  }> = {
-    [ConnectionPhase.IDLE]: { 
-      text: "Ready", 
-      status: "ready",
-      icon: "⚪"
-    },
-    [ConnectionPhase.INITIALIZING]: { 
-      text: "Initializing...", 
-      status: "warning",
-      icon: "🔄"
-    },
-    [ConnectionPhase.WAITING_FOR_OFFER]: { 
-      text: "Waiting for offer...", 
-      status: "warning",
-      icon: "⏳"
-    },
-    [ConnectionPhase.OFFER_CREATED]: { 
-      text: "Offer created", 
-      status: "ready",
-      icon: "📤"
-    },
-    [ConnectionPhase.WAITING_FOR_ANSWER]: { 
-      text: "Waiting for answer...", 
-      status: "warning",
-      icon: "⏳"
-    },
-    [ConnectionPhase.ANSWER_CREATED]: { 
-      text: "Answer created", 
-      status: "ready",
-      icon: "📥"
-    },
-    [ConnectionPhase.CONNECTING]: { 
-      text: "Connecting...", 
-      status: "warning",
-      icon: "🔗"
-    },
-    [ConnectionPhase.CONNECTED]: { 
-      text: "Connected", 
-      status: "active",
-      icon: "✅"
-    },
-    [ConnectionPhase.DISCONNECTED]: { 
-      text: "Disconnected", 
-      status: "ready",
-      icon: "🔌"
-    },
-    [ConnectionPhase.ERROR]: { 
-      text: "Error", 
-      status: "warning",
-      icon: "❌"
-    }
-  };
 
   // ICE state display
   const iceStateText: Record<RTCIceConnectionState, string> = {
@@ -90,7 +33,7 @@
   };
 
   // Reactive computed values
-  $: config = phaseConfig[$connectionPhase];
+  $: config = phaseDisplayConfig[$connectionPhase];
   $: displayText = config?.text ?? "Unknown";
   $: statusType = config?.status ?? "ready";
   $: icon = config?.icon ?? "⚪";
