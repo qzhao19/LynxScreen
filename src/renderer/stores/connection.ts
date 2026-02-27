@@ -11,7 +11,6 @@ import { showToast, appSettings } from "./app";
 // ============== Connection Manager Singleton ==============
 
 let connectionManagerInstance: ConnectionManager | null = null;
-let cursorSyncInitialized = false;
 
 function getConnectionManager(): ConnectionManager {
   if (!connectionManagerInstance) {
@@ -179,6 +178,15 @@ function setupConnectionCallbacks(): void {
       iceConnectionState.set(state);
     }
   });
+
+  // Register cursor update callback
+  connectionManagerInstance.onCursorUpdate((cursorData: RemoteCursorState) => {
+    remoteCursors.update(cursors => {
+      const newCursors = new Map(cursors);
+      newCursors.set(cursorData.id, cursorData);
+      return newCursors;
+    });
+  });
 }
 
 // ============== Helper Functions ==============
@@ -245,7 +253,6 @@ function resetConnectionStores(options: { clearError?: boolean } = {}): void {
   isDisplayEnabled.set(false);
   hasAudioInput.set(false);
   stopCursorChannelCheck();
-  cursorSyncInitialized = false;
   currentRole.set(null);
   
   if (options.clearError) {
@@ -435,21 +442,9 @@ export function toggleDisplayStream(): boolean {
  */
 export function setupCursorSync(): void {
   if (!connectionManagerInstance) return;
-  if (cursorSyncInitialized) return;
   
   // Enable cursor sync
   connectionManagerInstance.toggleRemoteCursors(true);
-  
-  // Register cursor update callback
-  connectionManagerInstance.onCursorUpdate((cursorData: RemoteCursorState) => {
-    remoteCursors.update(cursors => {
-      const newCursors = new Map(cursors);
-      newCursors.set(cursorData.id, cursorData);
-      return newCursors;
-    });
-  });
-
-  cursorSyncInitialized = true;
 }
 
 /**
