@@ -1,3 +1,5 @@
+import type { RemoteCursorState } from "./remote-cursor";
+
 /**
  * Connection state for UI updates
  */
@@ -23,4 +25,8 @@ export interface ConnectionManagerCallbacks {
   onIceConnectionStateChange?: (state: RTCIceConnectionState) => void;
   onError?: (error: Error) => void;
   onRemoteStream?: (stream: MediaStream) => void; 
+  onCursorUpdate?: (data: RemoteCursorState) => void;
+  onCursorPing?: (cursorId: string) => void;
+  onChannelOpen?: (label: string) => void;
+  onChannelClose?: (label: string) => void;
 };
