@@ -118,14 +118,14 @@ describe("DataChannelService", () => {
   });
 
   describe("onCursorUpdate", () => {
-    it("should register cursor update callback for watcher", () => {
-      // Watcher (isScreenSharer=false) receive Sharer's cursor position
-      const watcherService = new DataChannelService(false);
+    it("should call callback when Sharer receives cursor data (Sharer receives, Watcher sends)", () => {
+      // Sharer (isScreenSharer=true) receives Watcher's cursor position
+      const sharerService = new DataChannelService(true);
       const callback = vi.fn();
-      watcherService.onCursorUpdate(callback);
+      sharerService.onCursorUpdate(callback);
 
-      watcherService.createChannels(mockPeerConnection);
-      watcherService.toggleCursors(true);
+      sharerService.createChannels(mockPeerConnection);
+      sharerService.toggleCursors(true);
 
       const cursorData: RemoteCursorState = {
         id: "cursor-1",
@@ -144,28 +144,13 @@ describe("DataChannelService", () => {
       expect(callback).toHaveBeenCalledWith(cursorData);
     });
 
-    it("should not call callback when cursors are disabled", () => {
+    it("should NOT call callback when Watcher receives cursor data (Watcher sends, not receives)", () => {
+      // Watcher (isScreenSharer=false) should NOT process incoming cursor data
+      const watcherService = new DataChannelService(false);
       const callback = vi.fn();
-      service.onCursorUpdate(callback);
-      service.createChannels(mockPeerConnection);
-      // cursors are disabled by default
-
-      const messageEvent = {
-        data: JSON.stringify({ id: "cursor-1", name: "Test", color: "#000", x: 0, y: 0 })
-      } as MessageEvent;
-
-      mockCursorPositionsChannel.onmessage?.(messageEvent);
-
-      expect(callback).not.toHaveBeenCalled();
-    });
-
-    it("should NOT call callback when isScreenSharer is true (sharer does not receive)", () => {
-      // Verify that the Sharer does not receive the cursor
-      const sharerService = new DataChannelService(true);
-      const callback = vi.fn();
-      sharerService.onCursorUpdate(callback);
-      sharerService.createChannels(mockPeerConnection);
-      sharerService.toggleCursors(true);
+      watcherService.onCursorUpdate(callback);
+      watcherService.createChannels(mockPeerConnection);
+      watcherService.toggleCursors(true);
 
       const cursorData: RemoteCursorState = {
         id: "cursor-1",
@@ -181,14 +166,43 @@ describe("DataChannelService", () => {
 
       mockCursorPositionsChannel.onmessage?.(messageEvent);
 
-      // Sharer only send cursor, Not receive
+      // Watcher only sends cursor data, does not receive
       expect(callback).not.toHaveBeenCalled();
+    });
+
+    it("should not call callback when cursors are disabled", () => {
+      const sharerService = new DataChannelService(true);
+      const callback = vi.fn();
+      sharerService.onCursorUpdate(callback);
+      sharerService.createChannels(mockPeerConnection);
+      // cursors are disabled by default
+
+      const messageEvent = {
+        data: JSON.stringify({ id: "cursor-1", name: "Test", color: "#000", x: 0, y: 0 })
+      } as MessageEvent;
+
+      mockCursorPositionsChannel.onmessage?.(messageEvent);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it("should not call callback when no callback is registered", () => {
+      const sharerService = new DataChannelService(true);
+      sharerService.createChannels(mockPeerConnection);
+      sharerService.toggleCursors(true);
+
+      const messageEvent = {
+        data: JSON.stringify({ id: "cursor-1", name: "Test", color: "#000", x: 0, y: 0 })
+      } as MessageEvent;
+
+      expect(() => {
+        mockCursorPositionsChannel.onmessage?.(messageEvent);
+      }).not.toThrow();
     });
   });
 
   describe("onCursorPing", () => {
-    it("should register cursor ping callback for watcher", () => {
-      // Watcher (isScreenSharer=false) receive Sharer's ping
+    it("should call ping callback for Watcher (ping is bidirectional)", () => {
       const watcherService = new DataChannelService(false);
       const callback = vi.fn();
       watcherService.onCursorPing(callback);
@@ -205,8 +219,7 @@ describe("DataChannelService", () => {
       expect(callback).toHaveBeenCalledWith("cursor-1");
     });
 
-    it("should NOT call ping callback for screen sharer (sharer does not receive)", () => {
-      // Sharer not receive ping
+    it("should call ping callback for Sharer (ping is bidirectional)", () => {
       const sharerService = new DataChannelService(true);
       const callback = vi.fn();
       sharerService.onCursorPing(callback);
@@ -219,7 +232,22 @@ describe("DataChannelService", () => {
 
       mockCursorPingChannel.onmessage?.(messageEvent);
 
-      // Sharer send ping
+      // Ping is bidirectional, both roles should receive
+      expect(callback).toHaveBeenCalledWith("cursor-1");
+    });
+
+    it("should not call ping callback when cursors are disabled", () => {
+      const callback = vi.fn();
+      service.onCursorPing(callback);
+      service.createChannels(mockPeerConnection);
+      // cursors disabled by default
+
+      const messageEvent = {
+        data: "cursor-1"
+      } as MessageEvent;
+
+      mockCursorPingChannel.onmessage?.(messageEvent);
+
       expect(callback).not.toHaveBeenCalled();
     });
   });
@@ -251,8 +279,9 @@ describe("DataChannelService", () => {
   });
 
   describe("sendCursorUpdate", () => {
-    it("should send cursor update successfully", () => {
+    it("should send cursor update successfully when cursors enabled and channel ready", () => {
       service.createChannels(mockPeerConnection);
+      service.toggleCursors(true);
 
       const cursorData: RemoteCursorState = {
         id: "cursor-1",
@@ -268,8 +297,28 @@ describe("DataChannelService", () => {
       expect(mockCursorPositionsChannel.send).toHaveBeenCalledWith(JSON.stringify(cursorData));
     });
 
+    it("should return false when cursors are disabled", () => {
+      service.createChannels(mockPeerConnection);
+      // cursors disabled by default
+
+      const cursorData: RemoteCursorState = {
+        id: "cursor-1",
+        name: "TestUser",
+        color: "#FF0000",
+        x: 100,
+        y: 200
+      };
+
+      const result = service.sendCursorUpdate(cursorData);
+
+      expect(result).toBe(false);
+      expect(mockCursorPositionsChannel.send).not.toHaveBeenCalled();
+    });
+
     it("should return false when channel is not ready", () => {
       // Do not create channels
+      service.toggleCursors(true);
+
       const cursorData: RemoteCursorState = {
         id: "cursor-1",
         name: "TestUser",
@@ -284,8 +333,9 @@ describe("DataChannelService", () => {
     });
 
     it("should return false when channel is closed", () => {
-      service.createChannels(mockPeerConnection)
-      ;(mockCursorPositionsChannel as any).readyState = "closed";
+      service.createChannels(mockPeerConnection);
+      service.toggleCursors(true);
+      (mockCursorPositionsChannel as any).readyState = "closed";
 
       const cursorData: RemoteCursorState = {
         id: "cursor-1",
@@ -301,8 +351,9 @@ describe("DataChannelService", () => {
     });
 
     it("should return false and log error when send throws", () => {
-      service.createChannels(mockPeerConnection)
-      ;(mockCursorPositionsChannel.send as any).mockImplementation(() => {
+      service.createChannels(mockPeerConnection);
+      service.toggleCursors(true);
+      (mockCursorPositionsChannel.send as any).mockImplementation(() => {
         throw new Error("Send failed");
       });
 
@@ -321,8 +372,9 @@ describe("DataChannelService", () => {
   });
 
   describe("sendCursorPing", () => {
-    it("should send cursor ping successfully", () => {
+    it("should send cursor ping successfully when cursors enabled and channel ready", () => {
       service.createChannels(mockPeerConnection);
+      service.toggleCursors(true);
 
       const result = service.sendCursorPing("cursor-1");
 
@@ -330,15 +382,28 @@ describe("DataChannelService", () => {
       expect(mockCursorPingChannel.send).toHaveBeenCalledWith("cursor-1");
     });
 
+    it("should return false when cursors are disabled", () => {
+      service.createChannels(mockPeerConnection);
+      // cursors disabled by default
+
+      const result = service.sendCursorPing("cursor-1");
+
+      expect(result).toBe(false);
+      expect(mockCursorPingChannel.send).not.toHaveBeenCalled();
+    });
+
     it("should return false when channel is not ready", () => {
+      service.toggleCursors(true);
+
       const result = service.sendCursorPing("cursor-1");
 
       expect(result).toBe(false);
     });
 
     it("should return false when send throws", () => {
-      service.createChannels(mockPeerConnection)
-      ;(mockCursorPingChannel.send as any).mockImplementation(() => {
+      service.createChannels(mockPeerConnection);
+      service.toggleCursors(true);
+      (mockCursorPingChannel.send as any).mockImplementation(() => {
         throw new Error("Send failed");
       });
 
@@ -349,9 +414,8 @@ describe("DataChannelService", () => {
   });
 
   describe("toggleCursors", () => {
-    it("should enable cursors when channel is ready", () => {
-      service.createChannels(mockPeerConnection);
-
+    it("should enable cursors regardless of channel state (records user intent)", () => {
+      // No channels created — should still record user intent
       const result = service.toggleCursors(true);
 
       expect(result).toBe(true);
@@ -359,7 +423,6 @@ describe("DataChannelService", () => {
     });
 
     it("should disable cursors", () => {
-      service.createChannels(mockPeerConnection);
       service.toggleCursors(true);
 
       const result = service.toggleCursors(false);
@@ -368,11 +431,13 @@ describe("DataChannelService", () => {
       expect(service.isCursorsEnabled()).toBe(false);
     });
 
-    it("should return false when channel is not ready", () => {
+    it("should enable cursors when channels are ready", () => {
+      service.createChannels(mockPeerConnection);
+
       const result = service.toggleCursors(true);
 
-      expect(result).toBe(false);
-      expect(service.isCursorsEnabled()).toBe(false);
+      expect(result).toBe(true);
+      expect(service.isCursorsEnabled()).toBe(true);
     });
   });
 
@@ -382,7 +447,6 @@ describe("DataChannelService", () => {
     });
 
     it("should return true after enabling", () => {
-      service.createChannels(mockPeerConnection);
       service.toggleCursors(true);
 
       expect(service.isCursorsEnabled()).toBe(true);
@@ -473,10 +537,12 @@ describe("DataChannelService", () => {
 
   describe("error handling", () => {
     it("should handle invalid JSON in cursor update message", () => {
+      // Use Sharer since only Sharer processes incoming cursor data
+      const sharerService = new DataChannelService(true);
       const callback = vi.fn();
-      service.onCursorUpdate(callback);
-      service.createChannels(mockPeerConnection);
-      service.toggleCursors(true);
+      sharerService.onCursorUpdate(callback);
+      sharerService.createChannels(mockPeerConnection);
+      sharerService.toggleCursors(true);
 
       const messageEvent = {
         data: "invalid json"
@@ -501,54 +567,14 @@ describe("DataChannelService", () => {
   });
 
   describe("role-based behavior", () => {
-    describe("watcher role (isScreenSharer=false)", () => {
-      it("should process cursor updates", () => {
-        // Watcher receive cursor
-        const watcherService = new DataChannelService(false);
-        const callback = vi.fn();
-        watcherService.onCursorUpdate(callback);
-        watcherService.createChannels(mockPeerConnection);
-        watcherService.toggleCursors(true);
-
-        const cursorData: RemoteCursorState = {
-          id: "cursor-1",
-          name: "TestUser",
-          color: "#FF0000",
-          x: 100,
-          y: 200
-        };
-
-        const messageEvent = {
-          data: JSON.stringify(cursorData)
-        } as MessageEvent;
-
-        mockCursorPositionsChannel.onmessage?.(messageEvent);
-
-        expect(callback).toHaveBeenCalledWith(cursorData);
-      });
-
-      it("should process cursor ping", () => {
-        // Watcher receive ping
-        const watcherService = new DataChannelService(false);
-        const callback = vi.fn();
-        watcherService.onCursorPing(callback);
-        watcherService.createChannels(mockPeerConnection);
-        watcherService.toggleCursors(true);
-
-        const messageEvent = {
-          data: "cursor-1"
-        } as MessageEvent;
-
-        mockCursorPingChannel.onmessage?.(messageEvent);
-
-        expect(callback).toHaveBeenCalledWith("cursor-1");
-      });
-    });
-
     describe("sharer role (isScreenSharer=true)", () => {
-      it("should NOT process cursor updates (sharer only sends)", () => {
-        // Sharer receive NOT cursor
-        const sharerService = new DataChannelService(true);
+      let sharerService: DataChannelService;
+
+      beforeEach(() => {
+        sharerService = new DataChannelService(true);
+      });
+
+      it("should process incoming cursor updates (Sharer receives Watcher cursor)", () => {
         const callback = vi.fn();
         sharerService.onCursorUpdate(callback);
         sharerService.createChannels(mockPeerConnection);
@@ -568,12 +594,10 @@ describe("DataChannelService", () => {
 
         mockCursorPositionsChannel.onmessage?.(messageEvent);
 
-        expect(callback).not.toHaveBeenCalled();
+        expect(callback).toHaveBeenCalledWith(cursorData);
       });
 
-      it("should NOT process cursor ping (sharer only sends)", () => {
-        // Sharer receive NOT ping
-        const sharerService = new DataChannelService(true);
+      it("should process incoming cursor ping (ping is bidirectional)", () => {
         const callback = vi.fn();
         sharerService.onCursorPing(callback);
         sharerService.createChannels(mockPeerConnection);
@@ -585,7 +609,70 @@ describe("DataChannelService", () => {
 
         mockCursorPingChannel.onmessage?.(messageEvent);
 
+        expect(callback).toHaveBeenCalledWith("cursor-1");
+      });
+    });
+
+    describe("watcher role (isScreenSharer=false)", () => {
+      let watcherService: DataChannelService;
+
+      beforeEach(() => {
+        watcherService = new DataChannelService(false);
+      });
+
+      it("should NOT process incoming cursor updates (Watcher sends, not receives)", () => {
+        const callback = vi.fn();
+        watcherService.onCursorUpdate(callback);
+        watcherService.createChannels(mockPeerConnection);
+        watcherService.toggleCursors(true);
+
+        const cursorData: RemoteCursorState = {
+          id: "cursor-1",
+          name: "TestUser",
+          color: "#FF0000",
+          x: 100,
+          y: 200
+        };
+
+        const messageEvent = {
+          data: JSON.stringify(cursorData)
+        } as MessageEvent;
+
+        mockCursorPositionsChannel.onmessage?.(messageEvent);
+
         expect(callback).not.toHaveBeenCalled();
+      });
+
+      it("should process incoming cursor ping (ping is bidirectional)", () => {
+        const callback = vi.fn();
+        watcherService.onCursorPing(callback);
+        watcherService.createChannels(mockPeerConnection);
+        watcherService.toggleCursors(true);
+
+        const messageEvent = {
+          data: "cursor-1"
+        } as MessageEvent;
+
+        mockCursorPingChannel.onmessage?.(messageEvent);
+
+        expect(callback).toHaveBeenCalledWith("cursor-1");
+      });
+
+      it("should be able to send cursor update", () => {
+        watcherService.createChannels(mockPeerConnection);
+        watcherService.toggleCursors(true);
+
+        const cursorData: RemoteCursorState = {
+          id: "cursor-1",
+          name: "TestUser",
+          color: "#FF0000",
+          x: 100,
+          y: 200
+        };
+
+        const result = watcherService.sendCursorUpdate(cursorData);
+
+        expect(result).toBe(true);
       });
     });
   });
