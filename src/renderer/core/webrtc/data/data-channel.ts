@@ -31,6 +31,23 @@ export class DataChannelService {
   }
 
   /**
+   * Safely closes a data channel and removes all event handlers.
+   * @param channel - The RTCDataChannel to close
+   */
+  private closeChannelSilently(channel: RTCDataChannel | null): void {
+    if (!channel) return;
+    channel.onopen = null;
+    channel.onclose = null;
+    channel.onerror = null;
+    channel.onmessage = null;
+    try {
+      channel.close();
+    } catch (error) {
+      log.warn("Failed to close data channel:", error);
+    }
+  }
+
+  /**
    * Sets up event handlers for a data channel.
    * @param channel - The RTCDataChannel to setup
    */
@@ -44,11 +61,16 @@ export class DataChannelService {
       log.info(`Data channel closed: ${channel.label}`);
 
       // Reset channels and cursor state when closed
-      if (channel.label === DataChannelName.CURSOR_POSITIONS) {
+      if (
+        channel.label === DataChannelName.CURSOR_POSITIONS && 
+        this.cursorPositionsChannel === channel
+      ) {
         this.cursorPositionsChannel = null;
-        this.cursorsEnabled = false;
       }
-      if (channel.label === DataChannelName.CURSOR_PING) {
+      if (
+        channel.label === DataChannelName.CURSOR_PING && 
+        this.cursorPingChannel === channel
+      ) {
         this.cursorPingChannel = null;
       } 
 
@@ -63,12 +85,13 @@ export class DataChannelService {
       this.cursorPositionsChannel = channel;
       channel.onmessage = (msg: MessageEvent): void => {
         if (!this.cursorsEnabled) return;
-        // Sharer should send cursor updates.
-        // Watcher should receive cursor updates, parse, and trigger a callback.
-        // If it is a Sharer, do not process the received message (return directly).
-        // Only Watchers (isScreenSharer=false) will continue executing callback logic.
-        if (this.isScreenSharer) return;
+
+        // P2P cursor flow:
+        // Watcher sends cursor positions → Sharer receives and renders
+        // Therefore only Sharer (isScreenSharer=true) should process incoming cursor data
+        if (!this.isScreenSharer) return;
         if (!this.onCursorUpdateCallback) return;
+
         try {
           const data = JSON.parse(msg.data) as RemoteCursorState;
           this.onCursorUpdateCallback(data);
@@ -82,7 +105,7 @@ export class DataChannelService {
       this.cursorPingChannel = channel;
       channel.onmessage = (msg: MessageEvent): void => {
         if (!this.cursorsEnabled) return;
-        if (this.isScreenSharer) return;
+        // Ping is bidirectional
         this.onCursorPingCallback?.(msg.data);
       };
     }
@@ -93,6 +116,11 @@ export class DataChannelService {
    * @param pc - The RTCPeerConnection to create channels on
    */
   public createChannels(pc: RTCPeerConnection): void {
+    this.closeChannelSilently(this.cursorPositionsChannel);
+    this.closeChannelSilently(this.cursorPingChannel);
+    this.cursorPositionsChannel = null;
+    this.cursorPingChannel = null;
+
     this.cursorPositionsChannel = pc.createDataChannel(DataChannelName.CURSOR_POSITIONS);
     this.cursorPingChannel = pc.createDataChannel(DataChannelName.CURSOR_PING);
 
@@ -109,6 +137,13 @@ export class DataChannelService {
       channel.label === DataChannelName.CURSOR_POSITIONS ||
       channel.label === DataChannelName.CURSOR_PING
     ) {
+      // Clean up old channel with same label if it exists
+      if (channel.label === DataChannelName.CURSOR_POSITIONS) {
+        this.closeChannelSilently(this.cursorPositionsChannel);
+      } else {
+        this.closeChannelSilently(this.cursorPingChannel);
+      }
+
       this.setupDataChannel(channel);
     }
   }
@@ -123,11 +158,6 @@ export class DataChannelService {
 
   /**
    * Registers a callback for cursor ping messages.
-   * 
-   * OPTIONAL FEATURE: Used for cursor channel keep-alive and latency detection.
-   * Future use case: Display remote cursor online/latency status in UI.
-   * Currently not used in frontend - kept for future enhancements.
-   * 
    * @param callback - Function to call when cursor ping is received
    */
   public onCursorPing(callback: (cursorId: string) => void): void {
@@ -156,8 +186,10 @@ export class DataChannelService {
    * @returns True if sent successfully, false otherwise
    */
   public sendCursorUpdate(data: RemoteCursorState): boolean {
+    if (!this.cursorsEnabled) return false;
+
     if (!this.isChannelReady(this.cursorPositionsChannel)) {
-      log.error("Cursor positions channel not ready");
+      log.warn("Cursor positions channel not ready");
       return false;
     }
 
@@ -172,17 +204,13 @@ export class DataChannelService {
 
   /**
    * Sends cursor ping to the remote peer.
-   * 
-   * OPTIONAL FEATURE: Used for cursor channel keep-alive and latency detection.
-   * Future use case: Detect if remote cursor is still responsive, measure network latency.
-   * Currently not used in frontend - kept for future enhancements.
-   * 
    * @param cursorId - The cursor ID to ping
-   * @returns True if sent successfully, false otherwise
    */
   public sendCursorPing(cursorId: string): boolean {
+    if (!this.cursorsEnabled) return false;
+
     if (!this.isChannelReady(this.cursorPingChannel)) {
-      log.error("Cursor ping channel not ready");
+      log.warn("Cursor ping channel not ready");
       return false;
     }
 
@@ -197,14 +225,8 @@ export class DataChannelService {
 
   /**
    * Enables or disables cursor synchronization.
-   * @param enabled - Whether cursors should be enabled
-   * @returns The new enabled state, or false if channel not ready
    */
   public toggleCursors(enabled: boolean): boolean {
-    if (!this.isChannelReady(this.cursorPositionsChannel)) {
-      return false;
-    }
-
     this.cursorsEnabled = enabled;
     return enabled;
   }
@@ -244,25 +266,13 @@ export class DataChannelService {
    * Closes all data channels and cleans up resources.
    */
   public cleanup(): void {
-    if (this.cursorPositionsChannel) {
-      this.cursorPositionsChannel.onopen = null;
-      this.cursorPositionsChannel.onclose = null;
-      this.cursorPositionsChannel.onerror = null;
-      this.cursorPositionsChannel.onmessage = null;
-      this.cursorPositionsChannel.close();
-      this.cursorPositionsChannel = null;
-    }
-
-    if (this.cursorPingChannel) {
-      this.cursorPingChannel.onopen = null;
-      this.cursorPingChannel.onclose = null;
-      this.cursorPingChannel.onerror = null;
-      this.cursorPingChannel.onmessage = null;
-      this.cursorPingChannel.close();
-      this.cursorPingChannel = null;
-    }
-
+    this.closeChannelSilently(this.cursorPositionsChannel);
+    this.closeChannelSilently(this.cursorPingChannel);
+    
+    this.cursorPositionsChannel = null;
+    this.cursorPingChannel = null;
     this.cursorsEnabled = false;
+
     this.onCursorUpdateCallback = undefined;
     this.onCursorPingCallback = undefined;
     this.onChannelOpenCallback = undefined;
