@@ -13,7 +13,7 @@ vi.mock("electron-log", () => ({
   }
 }));
 
-describe("WebRTCConnectionService", () => {
+describe("PeerConnectionService", () => {
   let service: PeerConnectionService;
   let mockDataChannelService: DataChannelService;
   let mockPeerConnection: RTCPeerConnection;
@@ -165,6 +165,13 @@ describe("WebRTCConnectionService", () => {
       return this;
     });
     vi.stubGlobal("RTCIceCandidate", RTCIceCandidateMock);
+
+    // Mock MediaStream constructor for node test env
+    const MediaStreamMock = vi.fn(function (this: MediaStream, tracks?: MediaStreamTrack[]) {
+      (this as any)._tracks = tracks ?? [];
+      return this;
+    });
+    vi.stubGlobal("MediaStream", MediaStreamMock);
 
     service = new PeerConnectionService(mockConfig, mockDataChannelService);
   });
@@ -378,11 +385,12 @@ describe("WebRTCConnectionService", () => {
       expect(callback).toHaveBeenCalledWith(mockStream);
     });
 
-    it("should not call callback if no streams in track event", async () => {
+    it("should call callback with wrapped MediaStream if no streams in track event", async () => {
       const callback = vi.fn();
       service.onRemoteStream(callback);
 
       await service.initialize();
+      service.onRemoteStream(callback);
 
       const pc = service.getPeerConnection();
       const trackHandler = pc?.ontrack as ((event: RTCTrackEvent) => void) | null;
@@ -391,7 +399,8 @@ describe("WebRTCConnectionService", () => {
         streams: []
       } as unknown as RTCTrackEvent);
 
-      expect(callback).not.toHaveBeenCalled();
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(MediaStream).toHaveBeenCalled();
     });
   });
 
