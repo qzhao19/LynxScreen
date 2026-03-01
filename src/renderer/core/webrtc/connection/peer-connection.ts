@@ -16,48 +16,40 @@ export class PeerConnectionService {
   private onIceConnectionStateChangeCallback?: (state: RTCIceConnectionState) => void;
   private onRemoteStreamCallback?: (stream: MediaStream) => void;
 
-  /**
-   * Creates a new PeerConnectionService instance.
-   * 
-   * @param config - Connection configuration including ICE servers.
-   * @param dataChannelService - Service for managing data channels.
-   */
+  // Track pending ICE gathering so we can abort on cleanup
+  private iceGatheringAbortController: AbortController | null = null;
+
   constructor(config: WebRTCConnectionConfig, dataChannelService: DataChannelService) {
     this.config = config;
     this.dataChannelService = dataChannelService;
   }
 
-  /**
-   * Ensures the peer connection is initialized.
-   * @throws Error if peer connection is not initialized.
-   */
   private ensureConnection(): void {
     if (!this.pc) {
       throw new Error("Peer connection not initialized. Call initialize() first.");
     }
   }
 
-  /**
-   * Sets up event handlers for the RTCPeerConnection.
-   */
   private setupPeerConnectionHandlers(): void {
     if (!this.pc) return;
 
-    // Handle incoming data channels from remote peer
     this.pc.ondatachannel = (event: RTCDataChannelEvent): void => {
       log.info(`Incoming data channel: ${event.channel.label}`);
       this.dataChannelService.handleIncomingChannel(event.channel);
     };
 
-    // Handle incoming media tracks from remote peer
     this.pc.ontrack = (event: RTCTrackEvent): void => {
       log.info(`Received remote track: ${event.track.kind}`);
       if (event.streams && event.streams[0]) {
         this.onRemoteStreamCallback?.(event.streams[0]);
+      } else {
+        // Handle track without associated stream (possible during renegotiation)
+        log.warn("Received track without associated stream, wrapping in new MediaStream");
+        const stream = new MediaStream([event.track]);
+        this.onRemoteStreamCallback?.(stream);
       }
     };
 
-    // Handle ICE candidate gathering
     this.pc.onicecandidate = (event: RTCPeerConnectionIceEvent): void => {
       if (!event.candidate) {
         log.info("ICE candidate gathering complete");
@@ -66,7 +58,6 @@ export class PeerConnectionService {
       }
     };
 
-    // Handle ICE connection state changes
     this.pc.oniceconnectionstatechange = (): void => {
       if (this.pc) {
         const state = this.pc.iceConnectionState;
@@ -75,14 +66,12 @@ export class PeerConnectionService {
       }
     };
 
-    // Handle connection state changes
     this.pc.onconnectionstatechange = (): void => {
       if (this.pc) {
         log.info(`Connection state changed: ${this.pc.connectionState}`);
       }
     };
 
-    // Handle ICE gathering state changes
     this.pc.onicegatheringstatechange = (): void => {
       if (this.pc) {
         log.debug(`ICE gathering state: ${this.pc.iceGatheringState}`);
@@ -90,70 +79,89 @@ export class PeerConnectionService {
     };
   }
 
-/**
+  /**
    * Waits for ICE candidate gathering to complete.
-   * 
-   * @param timeout - Maximum time to wait in milliseconds (default: 5000ms).
-   * @returns Promise that resolves when gathering is complete.
+   * Uses an AbortController so cleanup/close can cancel a pending wait.
    */
   private waitForIceGathering(timeout: number = 5000): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (!this.pc) {
-        // If connection is closed, directly return 
+      const pc = this.pc;
+      if (!pc || pc.iceGatheringState === "complete") {
         resolve();
         return;
       }
 
-      // Already complete
-      if (this.pc.iceGatheringState === "complete") {
-        resolve();
-        return;
-      }
-
-      // Records number of candidate
+      let settled = false;
       let candidateCount = 0;
 
-      const checkComplete = (): void => {
-        if (!this.pc || this.pc.iceGatheringState === "complete") {
-          cleanup();
-          log.info(`ICE gathering complete with ${candidateCount} candidates`);
+      const controller = new AbortController();
+      this.iceGatheringAbortController = controller;
+      const { signal } = controller;
+
+      const settle = (fn: typeof resolve | typeof reject, arg?: unknown): void => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (fn === reject) {
+          (reject as (reason?: unknown) => void)(arg);
+        } else {
           resolve();
+        }
+      };
+
+      const checkComplete = (): void => {
+        if (pc.iceGatheringState === "complete") {
+          log.info(`ICE gathering complete with ${candidateCount} candidates`);
+          settle(resolve);
         }
       };
 
       const handleCandidate = (event: RTCPeerConnectionIceEvent): void => {
         if (event.candidate) {
           candidateCount += 1;
+        } else {
+          log.info(`ICE gathering done (null candidate) with ${candidateCount} candidates`);
+          settle(resolve);
         }
       };
 
-      const cleanup = (): void => {
-        clearTimeout(timeoutId);
-        this.pc?.removeEventListener("icegatheringstatechange", checkComplete);
-        this.pc?.removeEventListener("icecandidate", handleCandidate);
+      const handleAbort = (): void => {
+        log.warn("ICE gathering aborted externally");
+        settle(resolve);
       };
 
       const timeoutId = setTimeout(() => {
-        cleanup();
         if (candidateCount === 0) {
           log.error("ICE gathering timed out without candidates");
-          reject(new Error("ICE gathering timed out without sufficient candidates"));
+          settle(reject, new Error("ICE gathering timed out without sufficient candidates"));
         } else {
-          log.warn(`ICE gathering timed out after ${candidateCount} candidates`);
-          resolve();
+          log.warn(`ICE gathering timed out after ${candidateCount} candidates, proceeding`);
+          settle(resolve);
         }
       }, timeout);
 
-      this.pc.addEventListener("icegatheringstatechange", checkComplete);
-      this.pc.addEventListener("icecandidate", handleCandidate);
+      const cleanup = (): void => {
+        clearTimeout(timeoutId);
+        signal.removeEventListener("abort", handleAbort);
+        pc.removeEventListener("icegatheringstatechange", checkComplete);
+        pc.removeEventListener("icecandidate", handleCandidate);
+
+        if (this.iceGatheringAbortController === controller) {
+          this.iceGatheringAbortController = null;
+        }
+      };
+
+      signal.addEventListener("abort", handleAbort);
+      pc.addEventListener("icegatheringstatechange", checkComplete);
+      pc.addEventListener("icecandidate", handleCandidate);
     });
   }
 
   /**
    * Initializes the RTCPeerConnection with configured ICE servers.
    */
-  public async initialize(): Promise<void> {
-    this.cleanup();
+  public initialize(): void {
+    this.close();
 
     log.info("Initializing peer connection...");
 
@@ -170,13 +178,9 @@ export class PeerConnectionService {
     log.info("Peer connection initialized successfully");
   }
 
-  
   /**
    * Creates an SDP offer for initiating a connection.
    * Waits for ICE gathering to complete before returning.
-   * 
-   * @returns Promise resolving to the local session description.
-   * @throws Error if peer connection is not initialized.
    */
   public async createOffer(): Promise<RTCSessionDescriptionInit> {
     this.ensureConnection();
@@ -186,25 +190,20 @@ export class PeerConnectionService {
     const offer = await this.pc!.createOffer();
     await this.pc!.setLocalDescription(offer);
 
-    // Wait for ICE gathering to complete
     await this.waitForIceGathering();
 
-    const localDescription = this.pc!.localDescription;
-    if (!localDescription) {
-      throw new Error("Failed to create local description");
+    // Re-check after async wait — connection might have been closed
+    if (!this.pc || !this.pc.localDescription) {
+      throw new Error("Failed to create local description: connection was closed during ICE gathering");
     }
 
     log.info("Offer created successfully");
-    return localDescription;
+    return this.pc.localDescription;
   }
 
   /**
    * Creates an SDP answer in response to a received offer.
    * Waits for ICE gathering to complete before returning.
-   * 
-   * @param offer - The received SDP offer from the remote peer.
-   * @returns Promise resolving to the local session description (answer).
-   * @throws Error if peer connection is not initialized.
    */
   public async createAnswer(offer: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit> {
     this.ensureConnection();
@@ -216,24 +215,19 @@ export class PeerConnectionService {
     const answer = await this.pc!.createAnswer();
     await this.pc!.setLocalDescription(answer);
 
-    // Wait for ICE gathering to complete
     await this.waitForIceGathering();
 
-    const localDescription = this.pc!.localDescription;
-    if (!localDescription) {
-      throw new Error("Failed to create local description");
+    // Re-check after async wait
+    if (!this.pc || !this.pc.localDescription) {
+      throw new Error("Failed to create local description: connection was closed during ICE gathering");
     }
 
     log.info("Answer created successfully");
-    return localDescription;
+    return this.pc.localDescription;
   }
-  
+
   /**
    * Sets the remote session description to complete the connection.
-   * Used by the offer creator to accept the remote peer"s answer.
-   * 
-   * @param answer - The received SDP answer from the remote peer.
-   * @throws Error if peer connection is not initialized.
    */
   public async acceptAnswer(answer: RTCSessionDescriptionInit): Promise<void> {
     this.ensureConnection();
@@ -247,11 +241,6 @@ export class PeerConnectionService {
 
   /**
    * Adds a media track to the peer connection.
-   * 
-   * @param track - The media track to add.
-   * @param stream - The media stream containing the track.
-   * @returns The RTCRtpSender for the added track.
-   * @throws Error if peer connection is not initialized.
    */
   public addTrack(track: MediaStreamTrack, stream: MediaStream): RTCRtpSender {
     this.ensureConnection();
@@ -262,8 +251,6 @@ export class PeerConnectionService {
 
   /**
    * Removes a media track from the peer connection.
-   * 
-   * @param sender - The RTCRtpSender to remove.
    */
   public removeTrack(sender: RTCRtpSender): void {
     this.ensureConnection();
@@ -274,8 +261,6 @@ export class PeerConnectionService {
 
   /**
    * Creates data channels for cursor synchronization.
-   * 
-   * @throws Error if peer connection is not initialized.
    */
   public createDataChannels(): void {
     this.ensureConnection();
@@ -284,57 +269,26 @@ export class PeerConnectionService {
     this.dataChannelService.createChannels(this.pc!);
   }
 
-  /**
-   * Registers a callback for connection state changes.
-   * 
-   * @param callback - Function to call when connection state changes.
-   */
   public onIceConnectionStateChange(callback: (state: RTCIceConnectionState) => void): void {
     this.onIceConnectionStateChangeCallback = callback;
   }
 
-  /**
-   * Registers a callback for receiving remote media tracks.
-   * 
-   * @param callback - Function to call when a remote track is received.
-   */
   public onRemoteStream(callback: (stream: MediaStream) => void): void {
     this.onRemoteStreamCallback = callback;
   }
 
-  /**
-   * Checks if the peer connection is currently connected.
-   * 
-   * @returns True if connection state is "connected".
-   */
   public isConnected(): boolean {
     return this.pc?.connectionState === "connected";
   }
 
-  /**
-   * Gets the current connection state.
-   * 
-   * @returns The connection state or null if not initialized.
-   */
   public getConnectionState(): RTCPeerConnectionState | null {
     return this.pc?.connectionState ?? null;
   }
 
-  /**
-   * Gets the current ICE connection state.
-   * 
-   * @returns The ICE connection state or null if not initialized.
-   */
   public getIceConnectionState(): RTCIceConnectionState | null {
     return this.pc?.iceConnectionState ?? null;
   }
 
-  /**
-   * Gets the underlying RTCPeerConnection instance.
-   * Use with caution - prefer using service methods when possible.
-   * 
-   * @returns The RTCPeerConnection or null if not initialized.
-   */
   public getPeerConnection(): RTCPeerConnection | null {
     return this.pc;
   }
@@ -343,10 +297,17 @@ export class PeerConnectionService {
    * Closes the peer connection and cleans up handlers.
    */
   public close(): void {
+    const controller = this.iceGatheringAbortController;
+    if (controller) {
+      controller.abort();
+      if (this.iceGatheringAbortController === controller) {
+        this.iceGatheringAbortController = null;
+      }
+    }
+
     if (this.pc) {
       log.info("Closing peer connection");
 
-      // Clear event handlers
       this.pc.ondatachannel = null;
       this.pc.ontrack = null;
       this.pc.onicecandidate = null;
@@ -354,7 +315,6 @@ export class PeerConnectionService {
       this.pc.onconnectionstatechange = null;
       this.pc.onicegatheringstatechange = null;
 
-      // Close the connection
       this.pc.close();
       this.pc = null;
     }
@@ -371,5 +331,4 @@ export class PeerConnectionService {
 
     log.info("Connection service cleaned up");
   }
-  
 }
