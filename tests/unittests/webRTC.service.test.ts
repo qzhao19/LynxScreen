@@ -258,12 +258,12 @@ describe("WebRTCService", () => {
       expect(service.isServiceInitialized()).toBe(true);
     });
 
-    it("should handle display capture failure gracefully", async () => {
+    it("should throw when display capture fails for sharer", async () => {
       (navigator.mediaDevices.getDisplayMedia as any).mockRejectedValue(new Error("Permission denied"));
 
-      await service.initialize();
+      await expect(service.initialize()).rejects.toThrow();
 
-      expect(service.isServiceInitialized()).toBe(true);
+      expect(service.isServiceInitialized()).toBe(false);
     });
   });
 
@@ -526,8 +526,8 @@ describe("WebRTCService", () => {
         expect(mockVideoElement.srcObject).toBeNull();
       });
 
-      it("should handle disconnect when not initialized", async () => {
-        await expect(service.disconnect()).resolves.not.toThrow();
+      it("should handle disconnect when not initialized", () => {
+        expect(() => service.disconnect()).not.toThrow();
       });
     });
 
@@ -604,14 +604,14 @@ describe("WebRTCService", () => {
   });
 
   describe("edge cases", () => {
-    it("should handle setup failure and cleanup", async () => {
+    it("should throw and cleanup on setup failure", async () => {
       // Force initialization error
       (navigator.mediaDevices.getUserMedia as any).mockRejectedValue(new Error("Device not found"));
       (navigator.mediaDevices.getDisplayMedia as any).mockRejectedValue(new Error("Not allowed"));
 
-      // Should not throw, but initialize with limitations
-      await service.initialize();
-      expect(service.isServiceInitialized()).toBe(true);
+      // Sharer must have display stream — initialize should fail and cleanup
+      await expect(service.initialize()).rejects.toThrow();
+      expect(service.isServiceInitialized()).toBe(false);
     });
 
     // it("should handle null remoteVideo config", async () => {
