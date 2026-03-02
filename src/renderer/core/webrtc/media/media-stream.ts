@@ -9,9 +9,10 @@ export class MediaStreamService {
   private audioStream: MediaStream | null = null;
   private displayStream: MediaStream | null = null;
   // Callback binding to the display stream
-  private displayEndHandler?: () => void;
+  private displayEndEventHandler?: () => void;
   private onDisplayEndCallback?: () => void;
-
+  // Guard flag to prevent re-entrant calls from overlapping events
+  private isHandlingDisplayEnd: boolean = false;
 
   /**
    * Stop any existing audio stram
@@ -19,13 +20,13 @@ export class MediaStreamService {
   private stopTracks(stream: MediaStream | null): void {
     if (!stream) return;
     
-    // If stop the current display stream, remove listener
-    if (stream === this.displayStream && this.displayEndHandler) {
-      stream.removeEventListener("inactive", this.displayEndHandler);
+    // If stop the current display stream, remove all registered listener
+    if (stream === this.displayStream && this.displayEndEventHandler) {
+      stream.removeEventListener("inactive", this.displayEndEventHandler);
       stream.getTracks().forEach(track => {
-        track.removeEventListener("ended", this.displayEndHandler!);
+        track.removeEventListener("ended", this.displayEndEventHandler!);
       });
-      this.displayEndHandler = undefined;
+      this.displayEndEventHandler = undefined;
     }
 
     stream.getTracks().forEach(track => {
@@ -43,8 +44,28 @@ export class MediaStreamService {
   }
 
   /**
+   * Handles display stream ending from any source (track ended, stream inactive, etc).
+   */
+  private handleDisplayEnd(): void {
+    // Prevent re-entrant calls:
+    // Both "ended" (per-track) and "inactive" (stream-level) may fire
+    // for the same user action. Only process the first one.
+    if (this.isHandlingDisplayEnd) return;
+    this.isHandlingDisplayEnd = true;
+
+    try {
+      if (this.displayStream) {
+        this.stopTracks(this.displayStream);
+        this.displayStream = null;
+      }
+      this.onDisplayEndCallback?.();
+    } finally {
+      this.isHandlingDisplayEnd = false;
+    }
+  }
+
+  /**
    * Requests user permission to access the microphone and retrieves the audio stream.
-   * @returns Promise resolving to the audio MediaStream, or null if permission denied or error occurs.
    */
   public async getUserAudio(): Promise<MediaStream | null> {
     try {
@@ -64,31 +85,28 @@ export class MediaStreamService {
 
   /**
    * Requests user permission to capture the screen/display.
-   * @returns Promise resolving to the display MediaStream, or null if permission denied or error occurs.
    */
   public async getDisplayMedia(): Promise<MediaStream | null> {
     try {
+      // Clean up any existing display stream before acquiring new one
       this.stopTracks(this.displayStream);
+      this.displayStream = null;
+      this.isHandlingDisplayEnd = false;
+
       this.displayStream = await navigator.mediaDevices.getDisplayMedia({
         audio: false,
         video: true,
       });
 
-      // Use the arrow function to handle stream end
-      this.displayEndHandler = () => {
-        if (this.displayStream) {
-          this.stopTracks(this.displayStream);
-          this.displayStream = null;
-        }
-        this.onDisplayEndCallback?.(); // notify listeners：sharing already ended
-      };
+      // Bind the end handler via arrow function to preserve `this` context
+      this.displayEndEventHandler = () => this.handleDisplayEnd();
 
-      // When user stops sharing, clear the stored stream
-      // The “inactive” event for the displayStream (indicating the stream has ended entirely)
-      // The “ended” event for each track (indicating the end of an individual track)
-      this.displayStream.addEventListener("inactive", this.displayEndHandler);
-      this.displayStream.getTracks().forEach(track => { 
-        track.addEventListener("ended", this.displayEndHandler!); 
+      // Listen for both stream-level and track-level end events:
+      // - inactive: stream has no more active tracks
+      // - ended: individual track stopped (e.g. user clicked "Stop sharing")
+      this.displayStream.addEventListener("inactive", this.displayEndEventHandler);
+      this.displayStream.getTracks().forEach(track => {
+        track.addEventListener("ended", this.displayEndEventHandler!);
       });
 
       return this.displayStream;
@@ -109,7 +127,6 @@ export class MediaStreamService {
 
   /**
    * Gets the current audio stream.
-   * @returns The audio MediaStream or null if not available.
    */
   public getAudioStream(): MediaStream | null {
     return this.audioStream;
@@ -117,7 +134,6 @@ export class MediaStreamService {
 
   /**
    * Gets the current display stream.
-   * @returns The display MediaStream or null if not available.
    */
   public getDisplayStream(): MediaStream | null {
     return this.displayStream;
@@ -125,7 +141,6 @@ export class MediaStreamService {
 
   /**
    * Checks if audio input is available.
-   * @returns True if audio stream exists, false otherwise.
    */
   public hasAudioInput(): boolean {
     return this.audioStream !== null;
@@ -166,7 +181,6 @@ export class MediaStreamService {
 
   /**
    * Checks if audio tracks are currently active.
-   * @returns True if audio tracks are enabled, false otherwise.
    */
   public isAudioTrackActive(): boolean {
     if (!this.audioStream) return false;
@@ -175,7 +189,6 @@ export class MediaStreamService {
 
   /**
    * Checks if any video track is currently enabled.
-   * @returns True if any video track is enabled, false otherwise.
    */
   public isDisplayStreamActive(): boolean {
     if (!this.displayStream) return false;
@@ -197,5 +210,8 @@ export class MediaStreamService {
    */
   public cleanup(): void {
     this.stopAllTracks();
+    this.onDisplayEndCallback = undefined;
+    this.displayEndEventHandler = undefined;
+    this.isHandlingDisplayEnd = false;
   }
 }

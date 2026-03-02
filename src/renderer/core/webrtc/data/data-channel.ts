@@ -24,7 +24,6 @@ export class DataChannelService {
   /**
    * Checks if a data channel is ready for communication.
    * @param channel - The RTCDataChannel to check
-   * @returns True if channel exists and is open
    */
   private isChannelReady(channel: RTCDataChannel | null): boolean {
     return channel !== null && channel.readyState === "open";
@@ -183,7 +182,6 @@ export class DataChannelService {
   /**
    * Sends cursor position update to the remote peer.
    * @param data - The cursor state to send
-   * @returns True if sent successfully, false otherwise
    */
   public sendCursorUpdate(data: RemoteCursorState): boolean {
     if (!this.cursorsEnabled) return false;
@@ -247,8 +245,6 @@ export class DataChannelService {
 
   /**
    * Checks if the cursor ping channel is ready.
-   * 
-   * OPTIONAL FEATURE: Related to cursor keep-alive mechanism.
    * Currently not used in frontend - kept for future enhancements.
    */
   public isCursorPingChannelReady(): boolean {
