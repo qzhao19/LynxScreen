@@ -1,11 +1,11 @@
 import { writable, derived, get } from "svelte/store";
-import { ConnectionManager } from "../core/session/connection-manager";
+import { ConnectionManager } from "../../core/session/connection-manager";
 import { 
   ConnectionPhase, 
   PeerRole, 
   RemoteCursorState 
-} from "../../shared/types/index";
-import type { WebRTCServiceConfig } from "../shared/types/index";
+} from "../../../shared/types/index";
+import type { WebRTCServiceConfig } from "../../shared/types/index";
 import { showToast, appSettings } from "./app";
 
 // ============== Connection Manager Singleton ==============
@@ -180,13 +180,13 @@ function setupConnectionCallbacks(): void {
   });
 
   // Register cursor update callback
-  connectionManagerInstance.onCursorUpdate((cursorData: RemoteCursorState) => {
-    remoteCursors.update(cursors => {
-      const newCursors = new Map(cursors);
-      newCursors.set(cursorData.id, cursorData);
-      return newCursors;
-    });
-  });
+  // connectionManagerInstance.onCursorUpdate((cursorData: RemoteCursorState) => {
+  //   remoteCursors.update(cursors => {
+  //     const newCursors = new Map(cursors);
+  //     newCursors.set(cursorData.id, cursorData);
+  //     return newCursors;
+  //   });
+  // });
 }
 
 // ============== Helper Functions ==============
@@ -606,13 +606,13 @@ export function isCursorPingChannelReady(): boolean {
 /**
  * Registers callback for data channel open events
  */
-export function onChannelOpen(callback: (channelName: string) => void): void {
-  connectionManagerInstance?.onChannelOpen(callback);
-}
+// export function onChannelOpen(callback: (channelName: string) => void): void {
+//   connectionManagerInstance?.onChannelOpen(callback);
+// }
 
 /**
  * Registers callback for data channel close events
  */
-export function onChannelClose(callback: (channelName: string) => void): void {
-  connectionManagerInstance?.onChannelClose(callback);
-}
+// export function onChannelClose(callback: (channelName: string) => void): void {
+//   connectionManagerInstance?.onChannelClose(callback);
+// }
