@@ -3,9 +3,9 @@ import type {
   PageType, 
   SessionState, 
   ToastMessage, 
-} from "../shared/types/app";
-import type { AppSettings } from "../../shared/types/index";
-import { DEFAULT_APP_SETTINGS } from "../../shared/constants/index";
+} from "../../shared/types/app";
+import type { AppSettings } from "../../../shared/types/index";
+import { DEFAULT_APP_SETTINGS } from "../../../shared/constants/index";
 
 // Current page store
 export const currentPage = writable<PageType>("home");
