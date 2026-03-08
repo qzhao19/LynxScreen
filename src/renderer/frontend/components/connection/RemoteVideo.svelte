@@ -139,7 +139,7 @@
     class="remote-video"
   ></video>
 
-  {#if showOverlay && !$isConnected && !$remoteStream}
+  {#if showOverlay && (!$isConnected || !$remoteStream)}
     <div class="video-overlay">
       <span class="spinner"></span>
       <p class="overlay-text">{overlayText}</p>
