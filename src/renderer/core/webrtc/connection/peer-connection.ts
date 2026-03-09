@@ -33,11 +33,13 @@ export class PeerConnectionService {
   private setupPeerConnectionHandlers(): void {
     if (!this.pc) return;
 
+    // Data stream events, when the remote peer creates and sends a data channel 
     this.pc.ondatachannel = (event: RTCDataChannelEvent): void => {
       log.info(`Incoming data channel: ${event.channel.label}`);
       this.dataChannelService.handleIncomingChannel(event.channel);
     };
 
+    // Media track events, when receiving media tracks (audio or video) from a remote peer
     this.pc.ontrack = (event: RTCTrackEvent): void => {
       log.info(`Received remote track: ${event.track.kind}`);
       if (event.streams && event.streams[0]) {
@@ -50,6 +52,7 @@ export class PeerConnectionService {
       }
     };
 
+    // ICE candidate events, when local ICE candidates/network addresses are discovered or collection is complete
     this.pc.onicecandidate = (event: RTCPeerConnectionIceEvent): void => {
       if (!event.candidate) {
         log.info("ICE candidate gathering complete");
@@ -58,6 +61,7 @@ export class PeerConnectionService {
       }
     };
 
+    // ICE connection status change events
     this.pc.oniceconnectionstatechange = (): void => {
       if (this.pc) {
         const state = this.pc.iceConnectionState;
@@ -72,6 +76,7 @@ export class PeerConnectionService {
       }
     };
 
+    // ICE collection status change event
     this.pc.onicegatheringstatechange = (): void => {
       if (this.pc) {
         log.debug(`ICE gathering state: ${this.pc.iceGatheringState}`);
@@ -83,7 +88,7 @@ export class PeerConnectionService {
    * Waits for ICE candidate gathering to complete.
    * Uses an AbortController so cleanup/close can cancel a pending wait.
    */
-  private waitForIceGathering(timeout: number = 5000): Promise<void> {
+  private async waitForIceGathering(timeout: number = 5000): Promise<void> {
     return new Promise((resolve, reject) => {
       const pc = this.pc;
       if (!pc || pc.iceGatheringState === "complete") {
@@ -98,6 +103,8 @@ export class PeerConnectionService {
       this.iceGatheringAbortController = controller;
       const { signal } = controller;
 
+      // Unify the processing of resolve/reject. 
+      // Ensure it executes only once (via settled), then call cleanup() to release resources.
       const settle = (fn: typeof resolve | typeof reject, arg?: unknown): void => {
         if (settled) return;
         settled = true;
@@ -109,6 +116,7 @@ export class PeerConnectionService {
         }
       };
 
+      // Listen icegatheringstatechange event
       const checkComplete = (): void => {
         if (pc.iceGatheringState === "complete") {
           log.info(`ICE gathering complete with ${candidateCount} candidates`);
@@ -116,6 +124,8 @@ export class PeerConnectionService {
         }
       };
 
+      // Listen icecandidate event, when a candidate is available, add +1. 
+      // When no candidate is available, it indicates completion. 
       const handleCandidate = (event: RTCPeerConnectionIceEvent): void => {
         if (event.candidate) {
           candidateCount += 1;
@@ -125,6 +135,7 @@ export class PeerConnectionService {
         }
       };
 
+      // Listen AbortController event
       const handleAbort = (): void => {
         log.warn("ICE gathering aborted externally");
         settle(resolve);
