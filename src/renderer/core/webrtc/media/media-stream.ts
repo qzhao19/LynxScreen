@@ -9,7 +9,7 @@ export class MediaStreamService {
   private audioStream: MediaStream | null = null;
   private displayStream: MediaStream | null = null;
   // Callback binding to the display stream
-  private displayEndEventHandler?: () => void;
+  private displayEndEventListener?: () => void;
   private onDisplayEndCallback?: () => void;
   // Guard flag to prevent re-entrant calls from overlapping events
   private isHandlingDisplayEnd: boolean = false;
@@ -21,12 +21,12 @@ export class MediaStreamService {
     if (!stream) return;
     
     // If stop the current display stream, remove all registered listener
-    if (stream === this.displayStream && this.displayEndEventHandler) {
-      stream.removeEventListener("inactive", this.displayEndEventHandler);
+    if (stream === this.displayStream && this.displayEndEventListener) {
+      stream.removeEventListener("inactive", this.displayEndEventListener);
       stream.getTracks().forEach(track => {
-        track.removeEventListener("ended", this.displayEndEventHandler!);
+        track.removeEventListener("ended", this.displayEndEventListener!);
       });
-      this.displayEndEventHandler = undefined;
+      this.displayEndEventListener = undefined;
     }
 
     stream.getTracks().forEach(track => {
@@ -71,13 +71,17 @@ export class MediaStreamService {
     try {
       // Stops any existing audio stream before acquiring a new one
       this.stopTracks(this.audioStream);
+      this.audioStream = null;
+
       this.audioStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: false,
       });
+
+      log.info("Audio stream acquired successfully");
       return this.audioStream;
     } catch (error) {
-      log.error("Failed to get user audio:", error);
+      log.warn("Failed to get user audio:", error);
       this.audioStream = null;
       return null;
     }
@@ -99,14 +103,14 @@ export class MediaStreamService {
       });
 
       // Bind the end handler via arrow function to preserve `this` context
-      this.displayEndEventHandler = () => this.handleDisplayEnd();
+      this.displayEndEventListener = () => this.handleDisplayEnd();
 
       // Listen for both stream-level and track-level end events:
       // - inactive: stream has no more active tracks
       // - ended: individual track stopped (e.g. user clicked "Stop sharing")
-      this.displayStream.addEventListener("inactive", this.displayEndEventHandler);
+      this.displayStream.addEventListener("inactive", this.displayEndEventListener);
       this.displayStream.getTracks().forEach(track => {
-        track.addEventListener("ended", this.displayEndEventHandler!);
+        track.addEventListener("ended", this.displayEndEventListener!);
       });
 
       return this.displayStream;
@@ -153,7 +157,7 @@ export class MediaStreamService {
     return !!(
       this.displayStream &&
       this.displayStream.active &&
-      this.displayStream.getTracks().some(t => t.enabled && t.readyState === "live")
+      this.displayStream.getTracks().some(track => track.enabled && track.readyState === "live")
     );
   }
 
@@ -211,7 +215,7 @@ export class MediaStreamService {
   public cleanup(): void {
     this.stopAllTracks();
     this.onDisplayEndCallback = undefined;
-    this.displayEndEventHandler = undefined;
+    this.displayEndEventListener = undefined;
     this.isHandlingDisplayEnd = false;
   }
 }
