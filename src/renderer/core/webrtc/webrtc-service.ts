@@ -75,7 +75,6 @@ export class WebRTCService {
 
   /**
    * Sets up screen sharer media tracks (display + audio).
-   * @throws Error if display capture fails (critical for sharer)
    */
   private async setupSharerMediaTracks(): Promise<void> {
     const displayStream = await this.mediaService.getDisplayMedia();
@@ -90,11 +89,13 @@ export class WebRTCService {
     }
 
     // Add audio tracks (optional — mic may not be available)
-    const audioStream = this.mediaService.getAudioStream();
-    if (audioStream) {
-      for (const track of audioStream.getTracks()) {
-        track.enabled = this.config.userConfig.isMicrophoneEnabledOnConnect;
-        this.connectionService.addTrack(track, displayStream);
+    if (this.config.userConfig.isMicrophoneEnabledOnConnect) {
+      const audioStream = this.mediaService.getAudioStream();
+      if (audioStream) {
+        for (const track of audioStream.getTracks()) {
+          track.enabled = this.config.userConfig.isMicrophoneEnabledOnConnect;
+          this.connectionService.addTrack(track, audioStream);
+        }
       }
     }
   }
@@ -103,11 +104,13 @@ export class WebRTCService {
    * Sets up screen watcher media tracks (audio only).
    */
   private async setupWatcherMediaTracks(): Promise<void> {
-    const audioStream = this.mediaService.getAudioStream();
-    if (audioStream) {
-      for (const track of audioStream.getTracks()) {
-        track.enabled = this.config.userConfig.isMicrophoneEnabledOnConnect;
-        this.connectionService.addTrack(track, audioStream);
+    if (this.config.userConfig.isMicrophoneEnabledOnConnect) {
+      const audioStream = this.mediaService.getAudioStream();
+      if (audioStream) {
+        for (const track of audioStream.getTracks()) {
+          track.enabled = this.config.userConfig.isMicrophoneEnabledOnConnect;
+          this.connectionService.addTrack(track, audioStream);
+        }
       }
     }
   }
@@ -153,11 +156,26 @@ export class WebRTCService {
     }
   }
 
+  private async acquireAndAddAudioTrack(): Promise<boolean> {
+    const audioStream = this.mediaService.getAudioStream();
+    if (!audioStream) {
+      log.warn("[WebRTCService] Failed to acquire audio stream");
+      return false;
+    }
+    // Add all audio tracks to the peer connection so remote peer receives audio.
+    for (const track of audioStream.getAudioTracks()) {
+      track.enabled = true;
+      this.connectionService.addTrack(track, audioStream);
+    }
+
+    log.info("[WebRTCService] Audio track added to peer connection dynamically");
+    return true;
+  }
+
   // ============== Lifecycle ==============
 
   /**
    * Initializes the WebRTC service.
-   * @throws Error if display capture fails (sharer role)
    */
   public async initialize(): Promise<void> {
     try {
@@ -170,9 +188,12 @@ export class WebRTCService {
       // Register internal callbacks
       this.setupInternalCallbacks();
 
-      // Optional: get audio stream (mic permission may be denied)
-      await this.mediaService.getUserAudio();
-
+      // Optional: get audio stream
+      // Only request microphone permission when user explicitly enables it.
+      if (this.config.userConfig.isMicrophoneEnabledOnConnect) {
+        await this.mediaService.getUserAudio();
+      }
+      
       if (this.isScreenSharer()) {
         // Sharer: capture screen — will throw if user denies
         await this.setupSharerMediaTracks();
@@ -227,13 +248,30 @@ export class WebRTCService {
 
   // ============== Media Control ==============
 
-  public toggleMicrophone(): boolean {
+  public async toggleMicrophone(): Promise<boolean> {
+    if (!this.mediaService.hasAudioInput()) {
+      const success = await this.acquireAndAddAudioTrack();
+      if (!success) return false;
+
+      return true;
+    }
+
     const currentState = this.mediaService.isAudioTrackActive();
     this.mediaService.toggleAudioTrack(!currentState);
     return this.mediaService.isAudioTrackActive();
   }
 
-  public setMicrophoneEnabled(enabled: boolean): void {
+  public async setMicrophoneEnabled(enabled: boolean): Promise<void> {
+    if (!this.mediaService.hasAudioInput()) {
+      if (!enabled) {
+        return;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const success = await this.acquireAndAddAudioTrack();
+      return;
+    }
+
     this.mediaService.toggleAudioTrack(enabled);
   }
 
