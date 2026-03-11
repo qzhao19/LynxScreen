@@ -214,37 +214,89 @@ describe("WebRTCService", () => {
   });
 
   describe("setup", () => {
-    it("should initialize service as screen sharer", async () => {
+    it("should initialize service as screen sharer without microphone (default)", async () => {
+      // Default config: isMicrophoneEnabledOnConnect = false
       await service.initialize();
 
       expect(service.isServiceInitialized()).toBe(true);
       expect(RTCPeerConnection).toHaveBeenCalled();
-      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
-        audio: true,
-        video: false
-      });
+      // getUserMedia should NOT be called when mic is disabled
+      expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
       expect(navigator.mediaDevices.getDisplayMedia).toHaveBeenCalledWith({
         audio: false,
         video: true
       });
     });
 
-    it("should initialize service as screen watcher", async () => {
-      // const watcherConfig: WebRTCServiceConfig = {
-      //   ...mockConfig,
-      //   isScreenSharer: false
-      // };
-      const watcherService = new WebRTCService(mockWatcherConfig);
+    it("should initialize service as screen sharer with microphone enabled", async () => {
+      // Override config: enable mic on connect
+      const sharerWithMicConfig = {
+        ...mockSharerConfig,
+        userConfig: {
+          ...mockSharerConfig.userConfig,
+          isMicrophoneEnabledOnConnect: true
+        }
+      };
+      const sharerWithMicService = new WebRTCService(sharerWithMicConfig);
 
+      await sharerWithMicService.initialize();
+
+      expect(sharerWithMicService.isServiceInitialized()).toBe(true);
+      expect(RTCPeerConnection).toHaveBeenCalled();
+      // getUserMedia SHOULD be called when mic is enabled
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+        audio: true,
+        video: false
+      });
+      expect(navigator.mediaDevices.getDisplayMedia).toHaveBeenCalled();
+    });
+
+    it("should initialize service as screen watcher without microphone (default)", async () => {
+      const watcherService = new WebRTCService(mockWatcherConfig);
       await watcherService.initialize();
 
       expect(watcherService.isServiceInitialized()).toBe(true);
+      // getUserMedia should NOT be called when mic is disabled
+      expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
+      expect(navigator.mediaDevices.getDisplayMedia).not.toHaveBeenCalled();
+    });
+
+    it("should initialize service as screen watcher with microphone enabled", async () => {
+      const watcherWithMicConfig = {
+        ...mockWatcherConfig,
+        userConfig: {
+          ...mockWatcherConfig.userConfig,
+          isMicrophoneEnabledOnConnect: true
+        }
+      };
+      const watcherWithMicService = new WebRTCService(watcherWithMicConfig);
+
+      await watcherWithMicService.initialize();
+
+      expect(watcherWithMicService.isServiceInitialized()).toBe(true);
+      // getUserMedia SHOULD be called when mic is enabled
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled();
       expect(navigator.mediaDevices.getDisplayMedia).not.toHaveBeenCalled();
     });
 
-    it("should create audio element", async () => {
+    it("should NOT create audio element when mic is disabled (default)", async () => {
       await service.initialize();
+
+      // audioElement should NOT be created when isMicrophoneEnabledOnConnect = false
+      expect(document.createElement).not.toHaveBeenCalledWith("audio");
+    });
+
+    it("should create audio element when mic is enabled", async () => {
+      const sharerWithMicConfig = {
+        ...mockSharerConfig,
+        userConfig: {
+          ...mockSharerConfig.userConfig,
+          isMicrophoneEnabledOnConnect: true
+        }
+      };
+      const sharerWithMicService = new WebRTCService(sharerWithMicConfig);
+
+      await sharerWithMicService.initialize();
 
       expect(document.createElement).toHaveBeenCalledWith("audio");
       expect(document.body.appendChild).toHaveBeenCalled();
@@ -338,13 +390,23 @@ describe("WebRTCService", () => {
 
   describe("media control", () => {
     beforeEach(async () => {
+      // await service.initialize();
+      // Enable mic for media control tests so audio stream is available
+      const sharerWithMicConfig = {
+        ...mockSharerConfig,
+        userConfig: {
+          ...mockSharerConfig.userConfig,
+          isMicrophoneEnabledOnConnect: true
+        }
+      };
+      service = new WebRTCService(sharerWithMicConfig);
       await service.initialize();
     });
 
     describe("toggleMicrophone", () => {
-      it("should toggle microphone state", () => {
+      it("should toggle microphone state", async () => {
         const initialState = service.isMicrophoneActive();
-        const newState = service.toggleMicrophone();
+        const newState = await service.toggleMicrophone();
 
         expect(newState).toBe(!initialState);
       });
@@ -614,18 +676,6 @@ describe("WebRTCService", () => {
       expect(service.isServiceInitialized()).toBe(false);
     });
 
-    // it("should handle null remoteVideo config", async () => {
-    //   const noVideoConfig: WebRTCServiceConfig = {
-    //     ...mockConfig,
-    //     remoteVideo: null
-    //   };
-    //   const noVideoService = new WebRTCService(noVideoConfig);
-
-    //   await noVideoService.setup();
-
-    //   expect(noVideoService.isServiceInitialized()).toBe(true);
-    // });
-
     it("should handle multiple setup calls", async () => {
       await service.initialize();
       await service.initialize();
@@ -635,8 +685,8 @@ describe("WebRTCService", () => {
 
     it("should handle multiple disconnect calls", async () => {
       await service.initialize();
-      await service.disconnect();
-      await service.disconnect();
+      service.disconnect();
+      service.disconnect();
 
       expect(service.isServiceInitialized()).toBe(false);
     });
