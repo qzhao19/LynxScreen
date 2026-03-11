@@ -183,8 +183,10 @@ export class WebRTCService {
       this.connectionService.initialize();
 
       // Create audio element for remote audio playback
-      this.audioElement = this.createAudioElement();
-
+      if (this.config.userConfig.isMicrophoneEnabledOnConnect) {
+        this.audioElement = this.createAudioElement();
+      }
+      
       // Register internal callbacks
       this.setupInternalCallbacks();
 
