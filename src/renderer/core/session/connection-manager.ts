@@ -35,6 +35,10 @@ export class ConnectionManager {
     this.callbacks = { ...this.callbacks, ...callbacks };
   }
 
+  public clearCallbacks(): void {
+    this.callbacks = {};
+  }
+
   /**
    * Updates and notifies connection phase change
    */
@@ -105,6 +109,22 @@ export class ConnectionManager {
     // Setup remote media stream callback
     this.webrtcService.onRemoteStream((stream) => {
       this.callbacks.onRemoteStream?.(stream);
+    });
+
+    this.webrtcService.onCursorUpdate((data) => {
+      this.callbacks.onCursorUpdate?.(data);
+    });
+
+    this.webrtcService.onChannelOpen((channelName) => {
+      this.callbacks.onChannelOpen?.(channelName);
+    });
+
+    this.webrtcService.onCursorPing((cursorId) => {
+      this.callbacks.onCursorPing?.(cursorId);
+    });
+
+    this.webrtcService.onChannelClose((channelName) => {
+      this.callbacks.onChannelClose?.(channelName);
     });
   }
 
@@ -321,28 +341,6 @@ export class ConnectionManager {
   }
 
   /**
-   * Registers callback for data channel open events
-   */
-  public onChannelOpen(callback: (channelName: string) => void): void {
-    if (!this.webrtcService) {
-      log.warn("[ConnectionManager] Cannot register channel open callback: not initialized");
-      return;
-    }
-    this.webrtcService.onChannelOpen(callback);
-  }
-
-  /**
-   * Registers callback for data channel close events
-   */
-  public onChannelClose(callback: (channelName: string) => void): void {
-    if (!this.webrtcService) {
-      log.warn("[ConnectionManager] Cannot register channel close callback: not initialized");
-      return;
-    }
-    this.webrtcService.onChannelClose(callback);
-  }
-
-  /**
    * Updates remote cursor position (called by watcher)
    */
   public updateRemoteCursor(cursorData: RemoteCursorState): boolean {
@@ -351,17 +349,6 @@ export class ConnectionManager {
       return false;
     }
     return this.webrtcService.updateRemoteCursor(cursorData);
-  }
-
-  /**
-   * Registers callback for receiving cursor updates (for sharer)
-   */
-  public onCursorUpdate(callback: (data: RemoteCursorState) => void): void {
-    if (!this.webrtcService) {
-      log.warn("[ConnectionManager] Cannot register cursor callback: not initialized");
-      return;
-    }
-    this.webrtcService.onCursorUpdate(callback);
   }
 
   /**
@@ -393,9 +380,8 @@ export class ConnectionManager {
 
   /**
    * Toggles microphone state
-   * @returns Current microphone enabled state
    */
-  public toggleMicrophone(): boolean {
+  public async toggleMicrophone(): Promise<boolean> {
     if (!this.webrtcService) {
       log.warn("[ConnectionManager] Cannot toggle microphone: not connected");
       return false;
@@ -407,7 +393,7 @@ export class ConnectionManager {
    * Sets microphone enabled state
    * @param enabled - Whether to enable microphone
    */
-  public setMicrophoneEnabled(enabled: boolean): void {
+  public async setMicrophoneEnabled(enabled: boolean): Promise<void> {
     if (!this.webrtcService) {
       log.warn("[ConnectionManager] Cannot set microphone state: not connected");
       return;
@@ -417,7 +403,6 @@ export class ConnectionManager {
 
   /**
    * Toggles display stream state
-   * @returns Current display stream enabled state
    */
   public toggleDisplayStream(): boolean {
     if (!this.webrtcService) {
@@ -551,11 +536,11 @@ export class ConnectionManager {
   /**
    * Disconnects and cleans up
    */
-  public async disconnect(): Promise<void> {
+  public disconnect(): void {
     log.info("[ConnectionManager] Disconnecting...");
 
     if (this.webrtcService) {
-      await this.webrtcService.disconnect();
+      this.webrtcService.disconnect();
       this.webrtcService = null;
     }
 
@@ -573,10 +558,10 @@ export class ConnectionManager {
   /**
    * Resets to initial state
    */
-  public async reset(): Promise<void> {
-    await this.disconnect();
+  public reset(): void {
+    this.disconnect();
+    this.clearCallbacks();
     this.setConnectionPhase(ConnectionPhase.IDLE);
-    this.callbacks = {};
     this.isOperationInProgress = false;
   }
 }
