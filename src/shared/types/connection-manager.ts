@@ -27,6 +27,6 @@ export interface ConnectionManagerCallbacks {
   onRemoteStream?: (stream: MediaStream) => void; 
   onCursorUpdate?: (data: RemoteCursorState) => void;
   onCursorPing?: (cursorId: string) => void;
-  onChannelOpen?: (label: string) => void;
-  onChannelClose?: (label: string) => void;
+  onChannelOpen?: (channelName: string) => void;
+  onChannelClose?: (channelName: string) => void;
 };
