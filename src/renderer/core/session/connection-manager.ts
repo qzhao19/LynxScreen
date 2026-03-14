@@ -174,7 +174,6 @@ export class ConnectionManager {
 
       //Setup connetion step as offer-created
       this.setConnectionPhase(ConnectionPhase.OFFER_CREATED);
-      this.setConnectionPhase(ConnectionPhase.WAITING_FOR_ANSWER);
       this.callbacks.onUrlGenerated?.(offerUrl); 
 
       log.info("[ConnectionManager] Offer URL created and copied to clipboard");
