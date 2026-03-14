@@ -53,15 +53,8 @@ export const isConnecting = derived(
   $phase => [
     ConnectionPhase.INITIALIZING,
     ConnectionPhase.CONNECTING,
-    ConnectionPhase.WAITING_FOR_ANSWER
+    // ConnectionPhase.WAITING_FOR_ANSWER
   ].includes($phase)
-);
-
-export const canAcceptAnswer = derived(
-  [currentRole, connectionPhase],
-  ([$role, $phase]) => 
-    $role === PeerRole.SCREEN_SHARER && 
-    $phase === ConnectionPhase.WAITING_FOR_ANSWER
 );
 
 // Phase display text mapping
@@ -87,20 +80,10 @@ export const phaseDisplayConfig: Record<ConnectionPhase, {
     status: "warning",
     icon: "🔄"
   },
-  [ConnectionPhase.WAITING_FOR_OFFER]: { 
-    text: "Waiting for offer...", 
-    status: "warning",
-    icon: "⏳"
-  },
   [ConnectionPhase.OFFER_CREATED]: { 
     text: "Offer created", 
     status: "ready",
     icon: "📤"
-  },
-  [ConnectionPhase.WAITING_FOR_ANSWER]: { 
-    text: "Waiting for answer...", 
-    status: "warning",
-    icon: "⏳"
   },
   [ConnectionPhase.ANSWER_CREATED]: { 
     text: "Answer created", 
@@ -176,17 +159,16 @@ function setupConnectionCallbacks(): void {
     
     onIceConnectionStateChange: (state: RTCIceConnectionState) => {
       iceConnectionState.set(state);
-    }
-  });
+    },
 
-  // Register cursor update callback
-  // connectionManagerInstance.onCursorUpdate((cursorData: RemoteCursorState) => {
-  //   remoteCursors.update(cursors => {
-  //     const newCursors = new Map(cursors);
-  //     newCursors.set(cursorData.id, cursorData);
-  //     return newCursors;
-  //   });
-  // });
+    onCursorUpdate: (data: RemoteCursorState) => {
+      remoteCursors.update(cursors => {
+        const newCursors = new Map(cursors);
+        newCursors.set(data.id, data);
+        return newCursors;
+      });
+    },
+  });
 }
 
 // ============== Helper Functions ==============
@@ -406,10 +388,10 @@ export async function resetConnection(): Promise<void> {
 /**
  * Toggles microphone on/off
  */
-export function toggleMicrophone(): boolean {
+export async function toggleMicrophone(): Promise<boolean> {
   if (!connectionManagerInstance) return false;
   
-  const result = connectionManagerInstance.toggleMicrophone();
+  const result = await connectionManagerInstance.toggleMicrophone();
   isMicrophoneEnabled.set(connectionManagerInstance.isMicrophoneActive());
   return result;
 }
@@ -417,9 +399,9 @@ export function toggleMicrophone(): boolean {
 /**
  * Sets microphone enabled state
  */
-export function setMicrophoneEnabled(enabled: boolean): void {
+export async function setMicrophoneEnabled(enabled: boolean): Promise<void> {
   if (!connectionManagerInstance) return;
-  connectionManagerInstance.setMicrophoneEnabled(enabled);
+  await connectionManagerInstance.setMicrophoneEnabled(enabled);
   isMicrophoneEnabled.set(connectionManagerInstance.isMicrophoneActive());
 }
 
