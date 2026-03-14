@@ -6,9 +6,7 @@ import type { RemoteCursorState } from "./remote-cursor";
 export enum ConnectionPhase {
   IDLE = "idle",
   INITIALIZING = "initializing",
-  WAITING_FOR_OFFER = "waitingForOffer",
   OFFER_CREATED = "offerCreated",
-  WAITING_FOR_ANSWER = "waitingForAnswer",
   ANSWER_CREATED = "answerCreated",
   CONNECTING = "connecting",
   CONNECTED = "connected",
