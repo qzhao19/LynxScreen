@@ -8,7 +8,7 @@
     errorMessage,
     phaseDisplayConfig
   } from "../../stores/index";
-  import { PeerRole } from "../../../shared/types/index";
+  import { PeerRole } from "../../../../shared/types/index";
   import { StatusIndicator } from "../ui";
 
   // Props
