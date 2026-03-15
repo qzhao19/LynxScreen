@@ -234,6 +234,7 @@ function resetConnectionStores(options: { clearError?: boolean } = {}): void {
   isMicrophoneEnabled.set(false);
   isDisplayEnabled.set(false);
   hasAudioInput.set(false);
+  isLoading.set(false);
   stopCursorChannelCheck();
   currentRole.set(null);
   
@@ -554,7 +555,7 @@ export function getWebRTCService() {
   return connectionManagerInstance?.getWebRTCService() ?? null;
 }
 
-// ============== Cursor Control - Missing Functions ==============
+// ============== Cursor Control  ==============
 
 /**
  * Toggles cursor synchronization
@@ -584,17 +585,3 @@ export function isCursorPositionsChannelReady(): boolean {
 export function isCursorPingChannelReady(): boolean {
   return connectionManagerInstance?.isCursorPingChannelReady() ?? false;
 }
-
-/**
- * Registers callback for data channel open events
- */
-// export function onChannelOpen(callback: (channelName: string) => void): void {
-//   connectionManagerInstance?.onChannelOpen(callback);
-// }
-
-/**
- * Registers callback for data channel close events
- */
-// export function onChannelClose(callback: (channelName: string) => void): void {
-//   connectionManagerInstance?.onChannelClose(callback);
-// }
