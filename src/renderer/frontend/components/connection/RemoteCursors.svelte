@@ -3,7 +3,7 @@
   import { fade } from "svelte/transition";
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
   import { remoteCursors, removeRemoteCursor } from "../../stores/index";
-  import type { RemoteCursorState } from "../../../shared/types/index";
+  import type { RemoteCursorState } from "../../../../shared/types/index";
 
   // Props
   export let containerWidth = 0;
