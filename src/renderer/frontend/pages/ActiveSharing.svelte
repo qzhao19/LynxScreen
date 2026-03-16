@@ -8,7 +8,7 @@
     formatDuration,
     showToast 
   } from "../stores/app";
-  import { copyToClipboard } from "../../shared/utils/index";
+  import { copyToClipboard } from "../../../shared/utils/index";
 
   let watcherInput = "";
   let isConnecting = false;
