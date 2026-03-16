@@ -45,17 +45,17 @@ export const iceConnectionState = writable<RTCIceConnectionState | null>(null);
 
 export const isIdle = derived(connectionPhase, $phase => $phase === ConnectionPhase.IDLE);
 export const isConnected = derived(connectionPhase, $phase => $phase === ConnectionPhase.CONNECTED);
-export const isSharer = derived(currentRole, $role => $role === PeerRole.SCREEN_SHARER);
-export const isWatcher = derived(currentRole, $role => $role === PeerRole.SCREEN_WATCHER);
-
 export const isConnecting = derived(
   connectionPhase,
   $phase => [
     ConnectionPhase.INITIALIZING,
     ConnectionPhase.CONNECTING,
-    // ConnectionPhase.WAITING_FOR_ANSWER
   ].includes($phase)
 );
+
+export const isSharer = derived(currentRole, $role => $role === PeerRole.SCREEN_SHARER);
+export const isWatcher = derived(currentRole, $role => $role === PeerRole.SCREEN_WATCHER);
+
 
 // Phase display text mapping
 export type PhaseDisplayConfig = {
