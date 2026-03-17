@@ -311,7 +311,8 @@ export async function acceptAnswer(): Promise<boolean> {
  */
 export async function joinSession(
   username: string, 
-  videoElement: HTMLVideoElement
+  videoElement: HTMLVideoElement,
+  offerUrl?: string
 ): Promise<string | null> {
   isLoading.set(true);
   errorMessage.set(null);
@@ -331,7 +332,7 @@ export async function joinSession(
     };
     
     currentRole.set(PeerRole.SCREEN_WATCHER);
-    const url = await manager.joinSession(username, videoElement, config);
+    const url = await manager.joinSession(username, videoElement, config, offerUrl);
     
     if (!url) {
       currentRole.set(null);
