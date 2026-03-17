@@ -1,71 +1,73 @@
 <script lang="ts">
   import { PageContainer } from "../components/layout";
-  import { Card, StatusIndicator } from "../components/ui";
+  import { Card } from "../components/ui";
   import { 
-    sessionState, 
+    ConnectionStatus, 
+    ConnectionUrl, 
+    MediaControls, 
+    SessionTimer 
+  } from "../components/connection";
+  import { 
     navigateTo, 
-    stopSessionTimer, 
-    formatDuration,
     showToast 
   } from "../stores/app";
-  import { copyToClipboard } from "../../../shared/utils/index";
+  import {
+    connectionPhase,
+    generatedUrl,
+    isConnected,
+    isLoading,
+    errorMessage,
+    acceptAnswer,
+    disconnect,
+    resetConnection
+  } from "../stores/connection";
+  import { ConnectionPhase } from "../../../shared/types/index";
 
-  let watcherInput = "";
-  let isConnecting = false;
+  let isAccepting = false;
 
-  async function handleConnectWatcher() {
-    if (!watcherInput.trim()) {
-      showToast("Please enter the participant URL string", "error");
-      return;
-    }
-
-    isConnecting = true;
+  async function handleAcceptAnswer() {
+    isAccepting = true;
     
     try {
-      // TODO: Call actual connect watcher logic
-      // await connectionManager.acceptAnswerUrl(watcherInput);
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      sessionState.update(s => ({ ...s, status: "connected" }));
-      showToast("Watcher connected", "success");
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const success = await acceptAnswer();
+      if (success) {
+        showToast("Answer accepted, connecting...", "success");
+      } else {
+        showToast("Failed to accept answer. Make sure the watcher's URL is in your clipboard.", "error");
+      }
     } catch (error) {
-      showToast("Connection failed", "error");
+      const message = error instanceof Error ? error.message : "Failed to accept answer";
+      showToast(message, "error");
     } finally {
-      isConnecting = false;
+      isAccepting = false;
     }
   }
 
-  async function handleCopySessionUrl() {
+  async function handleCancel() {
     try {
-      await copyToClipboard($sessionState.sessionUrl);
-      showToast("Session URL copied to clipboard", "success");
+      await resetConnection();
+      showToast("Session ended", "info");
+      navigateTo("home");
     } catch (error) {
-      console.error("Failed to copy:", error);
-      showToast("Failed to copy to clipboard", "error");
+      console.error("Cancel error:", error);
+      navigateTo("home");
     }
   }
 
-  function handleCancel() {
-    stopSessionTimer();
-    sessionState.update(s => ({
-      ...s,
-      isActive: false,
-      sessionUrl: "",
-      watcherUrl: "",
-      duration: 0,
-      status: "idle"
-    }));
-    navigateTo("home");
-    showToast("Session ended", "info");
-  }
-
-  function handleKeydown(event: KeyboardEvent) {
-    if (event.key === "Enter" && !isConnecting) {
-      handleConnectWatcher();
+  async function handleDisconnect() {
+    try {
+      await disconnect();
+      showToast("Disconnected", "info");
+      navigateTo("home");
+    } catch (error) {
+      console.error("Disconnect error:", error);
     }
   }
+
+  $: phase = $connectionPhase;
+  $: showAcceptSection = phase === ConnectionPhase.OFFER_CREATED;
+  $: showMediaControls = $isConnected;
+  $: showError = $errorMessage && phase === ConnectionPhase.ERROR;
 </script>
 
 <PageContainer maxWidth="600px">
@@ -74,11 +76,14 @@
       <!-- Header -->
       <header class="header">
         <div class="header-left">
-          <h1 class="title">Sharing Active</h1>
-          <StatusIndicator 
-            status={$sessionState.status === "connected" ? "active" : "ready"} 
-            text={$sessionState.status === "connected" ? "Connected" : "Session Started"} 
-          />
+          <h1 class="title">
+            {#if $isConnected}
+              Sharing Active
+            {:else}
+              Setting Up Session
+            {/if}
+          </h1>
+          <ConnectionStatus compact />
         </div>
         <button class="cancel-button" on:click={handleCancel} aria-label="Cancel">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -88,70 +93,93 @@
         </button>
       </header>
 
-      <!-- Connection string section -->
-      <section class="section">
-        <div class="section-header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-          </svg>
-          <span>Connection String</span>
+      <!-- Error display -->
+      {#if showError}
+        <div class="error-banner">
+          <span class="error-icon">❌</span>
+          <span class="error-text">{$errorMessage}</span>
         </div>
-        
-        <div class="url-container">
-          <code class="url-text">{$sessionState.sessionUrl}</code>
-          <button class="copy-button" on:click={handleCopySessionUrl}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      {/if}
+
+      <!-- Offer URL section -->
+      {#if $generatedUrl}
+        <section class="section">
+          <ConnectionUrl 
+            url={$generatedUrl}
+            label="Your Session URL"
+            hint="Share this URL with the watcher. It has been copied to your clipboard."
+          />
+        </section>
+      {/if}
+
+      <!-- Accept answer section -->
+      {#if showAcceptSection}
+        <section class="section">
+          <div class="section-header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
-            Copy
+            <span>Accept Watcher</span>
+          </div>
+          
+          <p class="section-hint">
+            After the watcher generates their answer URL and copies it to their clipboard, 
+            ask them to send it to you. Copy the answer URL to your clipboard, then click the button below.
+          </p>
+
+          <button 
+            class="accept-button"
+            on:click={handleAcceptAnswer}
+            disabled={isAccepting || $isLoading}
+          >
+            {#if isAccepting || $isLoading}
+              <span class="spinner"></span>
+              Accepting...
+            {:else}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              Accept Answer from Clipboard
+            {/if}
           </button>
-        </div>
-        
-        <p class="hint">Share this link with the watcher to join the session</p>
-      </section>
+        </section>
+      {/if}
 
-      <!-- Watcher connection section -->
-      <section class="section">
-        <div class="section-header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-          <span>Watcher Connection</span>
-        </div>
-        
-        <input
-          type="text"
-          bind:value={watcherInput}
-          on:keydown={handleKeydown}
-          placeholder="Enter watcher connection string..."
-          class="input"
-          disabled={isConnecting}
-        />
-        
+      <!-- Media controls (when connected) -->
+      {#if showMediaControls}
+        <section class="section">
+          <div class="section-header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            <span>Media Controls</span>
+          </div>
+          <MediaControls 
+            showDisconnect={false}
+          />
+        </section>
+
+        <section class="section">
+          <SessionTimer />
+        </section>
+
         <button 
-          class="connect-button"
-          on:click={handleConnectWatcher}
-          disabled={isConnecting || !watcherInput.trim()}
+          class="disconnect-button"
+          on:click={handleDisconnect}
         >
-          {#if isConnecting}
-            <span class="spinner"></span>
-            Connecting...
-          {:else}
-            Connect Watcher
-          {/if}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+          End Session
         </button>
-      </section>
-
-      <!-- Session Duration -->
-      <footer class="footer">
-        <span class="footer-label">Session Duration</span>
-        <span class="footer-value">{formatDuration($sessionState.duration)}</span>
-      </footer>
+      {/if}
     </div>
   </Card>
 </PageContainer>
@@ -186,16 +214,37 @@
     justify-content: center;
     width: 36px;
     height: 36px;
-    background: var(--color-accent-red);
-    border: none;
+    background: var(--color-bg-card-hover);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    color: white;
+    color: var(--color-text-secondary);
     cursor: pointer;
-    transition: background var(--transition-fast);
+    transition: all var(--transition-fast);
   }
 
   .cancel-button:hover {
-    background: var(--color-accent-red-hover);
+    background: var(--color-accent-red);
+    border-color: var(--color-accent-red);
+    color: white;
+  }
+
+  .error-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--radius-md);
+  }
+
+  .error-icon {
+    font-size: 1rem;
+  }
+
+  .error-text {
+    font-size: 0.9rem;
+    color: var(--color-accent-red);
   }
 
   .section {
@@ -215,119 +264,56 @@
     color: var(--color-text-primary);
   }
 
-  .url-container {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-md);
-    background: var(--color-bg-input);
-    border-radius: var(--radius-md);
-  }
-
-  .url-text {
-    flex: 1;
+  .section-hint {
     font-size: 0.85rem;
-    color: var(--color-text-secondary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .copy-button {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-sm) var(--spacing-md);
-    background: var(--color-accent-blue);
-    border: none;
-    border-radius: var(--radius-sm);
-    color: white;
-    font-size: 0.85rem;
-    font-weight: 500;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: background var(--transition-fast);
-  }
-
-  .copy-button:hover {
-    background: var(--color-accent-blue-hover);
-  }
-
-  .hint {
-    font-size: 0.8rem;
     color: var(--color-text-muted);
+    line-height: 1.6;
   }
 
-  .input {
-    width: 100%;
-    padding: var(--spacing-md) var(--spacing-lg);
-    background: var(--color-bg-input);
-    border: 1px solid var(--color-accent-green);
-    border-radius: var(--radius-md);
-    color: var(--color-text-primary);
-    font-size: 0.95rem;
-    transition: border-color var(--transition-fast);
-  }
-
-  .input:focus {
-    outline: none;
-    border-color: var(--color-accent-green);
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
-  }
-
-  .input::placeholder {
-    color: var(--color-text-muted);
-  }
-
-  .input:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .connect-button {
+  .accept-button {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--spacing-sm);
     padding: var(--spacing-md);
-    background: var(--color-bg-card-hover);
+    background: var(--color-accent-blue);
     border: none;
     border-radius: var(--radius-md);
-    color: var(--color-text-primary);
+    color: white;
     font-size: 0.95rem;
     font-weight: 500;
     cursor: pointer;
     transition: background var(--transition-fast);
   }
 
-  .connect-button:hover:not(:disabled) {
-    background: rgba(60, 70, 90, 0.9);
+  .accept-button:hover:not(:disabled) {
+    background: var(--color-accent-blue-hover);
   }
 
-  .connect-button:disabled {
-    opacity: 0.5;
+  .accept-button:disabled {
+    opacity: 0.6;
     cursor: not-allowed;
   }
 
-  .footer {
+  .disconnect-button {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: var(--spacing-md) var(--spacing-lg);
-    background: rgba(0, 0, 0, 0.2);
+    justify-content: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+    padding: var(--spacing-md);
+    background: var(--color-accent-red);
+    border: none;
     border-radius: var(--radius-md);
-  }
-
-  .footer-label {
-    font-size: 0.9rem;
-    color: var(--color-text-secondary);
-  }
-
-  .footer-value {
-    font-family: "SF Mono", "Monaco", "Inconsolata", monospace;
-    font-size: 1rem;
+    color: white;
+    font-size: 0.95rem;
     font-weight: 600;
-    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+
+  .disconnect-button:hover {
+    background: var(--color-accent-red-hover);
   }
 
   .spinner {
