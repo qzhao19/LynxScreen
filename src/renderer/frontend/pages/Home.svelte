@@ -1,7 +1,10 @@
 <script lang="ts">
   import { PageContainer } from "../components/layout";
   import { Card, IconCircle } from "../components/ui";
+  import { ConnectionStatus } from "../components/connection";
   import { navigateTo } from "../stores/app";
+  import { isConnected, connectionPhase, isSharer } from "../stores/connection";
+  import { ConnectionPhase } from "../../../shared/types/index";
 
   const options = [
     {
@@ -21,11 +24,23 @@
       page: "share" as const
     }
   ];
+
+  function handleNavigate(page: "watch" | "share") {
+    // If already connected, redirect to active session
+    if ($isConnected) {
+      navigateTo($isSharer ? "active-sharing" : "watch");
+      return;
+    }
+    navigateTo(page);
+  }
+
+  $: hasActiveSession = $connectionPhase !== ConnectionPhase.IDLE && 
+                          $connectionPhase !== ConnectionPhase.ERROR &&
+                          $connectionPhase !== ConnectionPhase.DISCONNECTED;
 </script>
 
 <PageContainer maxWidth="700px">
   <div class="home-content">
-    <!-- Settings button -->
     <button class="settings-button" on:click={() => navigateTo("settings")} aria-label="Settings">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="3"/>
@@ -33,16 +48,25 @@
       </svg>
     </button>
 
-    <!-- Header -->
     <header class="header">
       <h1 class="title">LynxScreen</h1>
       <p class="subtitle">Peer-to-Peer screen sharing</p>
     </header>
 
-    <!-- Options grid -->
+    <!-- Active session banner -->
+    {#if hasActiveSession}
+      <button 
+        class="active-session-banner" 
+        on:click={() => navigateTo($isSharer ? "active-sharing" : "watch")}
+      >
+        <ConnectionStatus compact />
+        <span class="banner-text">Return to active session →</span>
+      </button>
+    {/if}
+
     <div class="options-grid">
       {#each options as option(option.id)}
-        <Card clickable on:click={() => navigateTo(option.page)}>
+        <Card clickable on:click={() => handleNavigate(option.page)}>
           <div class="option-content">
             <IconCircle color={option.iconColor}>
               {option.icon}
@@ -98,6 +122,31 @@
   .subtitle {
     font-size: 1.1rem;
     color: var(--color-text-secondary);
+  }
+
+  .active-session-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .active-session-banner:hover {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.5);
+  }
+
+  .banner-text {
+    font-size: 0.9rem;
+    color: var(--color-accent-green);
+    font-weight: 500;
   }
 
   .options-grid {
