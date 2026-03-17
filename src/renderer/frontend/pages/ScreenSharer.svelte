@@ -1,39 +1,49 @@
 <script lang="ts">
   import { PageContainer, BackButton } from "../components/layout";
   import { Card, IconCircle, StatusIndicator } from "../components/ui";
-  import { navigateTo, sessionState, startSessionTimer, showToast } from "../stores/app";
+  import { ConnectionStatus } from "../components/connection";
+  import { 
+    navigateTo, 
+    showToast, 
+    appSettings 
+  } from "../stores/app";
+  import { 
+    startSharing, 
+    connectionPhase, 
+    isLoading, 
+    errorMessage 
+  } from "../stores/connection";
+  import { ConnectionPhase } from "../../../shared/types/index";
 
   let isStarting = false;
 
   async function handleStartSharing() {
+    const username = $appSettings.username || "Anonymous";
+    
+    if (!username.trim()) {
+      showToast("Please set a username in Settings first", "error");
+      return;
+    }
+
     isStarting = true;
     
     try {
-      // TODO: Call actual start session logic
-      // const url = await connectionManager.startSharing();
+      const url = await startSharing(username);
       
-      // Simulate generating URL
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockUrl = "https://bananas.app/session/abc123xyz";
-      
-      sessionState.update(s => ({
-        ...s,
-        isActive: true,
-        sessionUrl: mockUrl,
-        status: "waiting"
-      }));
-      
-      startSessionTimer();
-      showToast("Session created", "success");
-      navigateTo("active-sharing");
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      if (url) {
+        showToast("Session created, URL copied to clipboard", "success");
+        navigateTo("active-sharing");
+      }
     } catch (error) {
-      showToast("Failed to create session", "error");
+      const message = error instanceof Error ? error.message : "Failed to create session";
+      showToast(message, "error");
     } finally {
       isStarting = false;
     }
   }
+
+  $: buttonDisabled = isStarting || $isLoading;
+  $: showError = $errorMessage && $connectionPhase === ConnectionPhase.ERROR;
 </script>
 
 <PageContainer maxWidth="500px">
@@ -41,32 +51,38 @@
   
   <Card>
     <div class="share-content">
-      <!-- Icon -->
       <IconCircle color="green" size="lg">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polygon points="5 3 19 12 5 21 5 3"/>
         </svg>
       </IconCircle>
 
-      <!-- Title -->
       <h1 class="title">Share Screen</h1>
       <p class="subtitle">Start sharing your screen with others</p>
 
-      <!-- Status card -->
       <div class="status-card">
-        <StatusIndicator status="ready" text="System Ready" />
-        <p class="status-hint">Click the button below to start sharing your screen</p>
+        {#if showError}
+          <StatusIndicator status="warning" text="Error" />
+          <p class="status-hint error-text">{$errorMessage}</p>
+        {:else}
+          <ConnectionStatus compact />
+          <p class="status-hint">Click the button below to start sharing your screen</p>
+        {/if}
       </div>
 
-      <!-- Start button -->
+      <div class="user-info">
+        <span class="user-label">Sharing as:</span>
+        <span class="user-name">{$appSettings.username || "Anonymous"}</span>
+      </div>
+
       <button 
         class="start-button"
         on:click={handleStartSharing}
-        disabled={isStarting}
+        disabled={buttonDisabled}
       >
-        {#if isStarting}
+        {#if buttonDisabled}
           <span class="spinner"></span>
-          Creating...
+          Creating session...
         {:else}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="5 3 19 12 5 21 5 3"/>
@@ -111,6 +127,29 @@
     font-size: 0.85rem;
     color: var(--color-text-muted);
     margin-top: var(--spacing-sm);
+  }
+
+  .error-text {
+    color: var(--color-accent-red);
+  }
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+  }
+
+  .user-label {
+    color: var(--color-text-muted);
+  }
+
+  .user-name {
+    color: var(--color-text-primary);
+    font-weight: 500;
   }
 
   .start-button {
