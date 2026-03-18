@@ -246,7 +246,8 @@ export class ConnectionManager {
   public async joinSession(
     username: string, 
     remoteVideo: HTMLVideoElement, 
-    config?: Partial<WebRTCServiceConfig>
+    config?: Partial<WebRTCServiceConfig>,
+    offerUrl?: string
   ): Promise<string | null> {
     if (!this.acquireOperationLock()) return null;
     try {
@@ -254,10 +255,10 @@ export class ConnectionManager {
       this.role = PeerRole.SCREEN_WATCHER;
       this.username = username;
 
-      // Read URL from clipboard
-      const url = await readFromClipboard();
+      // Use provided URL or fall back to clipboard
+      const url = offerUrl ?? await readFromClipboard();
       if (!url) {
-        throw new Error("No URL in clipboard");
+        throw new Error("No session URL provided");
       }
 
       // Validate URL
@@ -393,11 +394,7 @@ export class ConnectionManager {
    * @param enabled - Whether to enable microphone
    */
   public async setMicrophoneEnabled(enabled: boolean): Promise<void> {
-    if (!this.webrtcService) {
-      log.warn("[ConnectionManager] Cannot set microphone state: not connected");
-      return;
-    }
-    this.webrtcService.setMicrophoneEnabled(enabled);
+    this.webrtcService?.setMicrophoneEnabled(enabled);
   }
 
   /**
@@ -416,11 +413,7 @@ export class ConnectionManager {
    * @param enabled - Whether to enable display stream
    */
   public setDisplayStreamEnabled(enabled: boolean): void {
-    if (!this.webrtcService) {
-      log.warn("[ConnectionManager] Cannot set display stream state: not connected");
-      return;
-    }
-    this.webrtcService.setDisplayStreamEnabled(enabled);
+    this.webrtcService?.setDisplayStreamEnabled(enabled);
   }
 
   /**
