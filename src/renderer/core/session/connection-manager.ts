@@ -1,10 +1,8 @@
-import log from "electron-log";
+import log from "electron-log/renderer";
 import { WebRTCService } from "../webrtc/index";
 import { 
   encodeConnectionUrl, 
   decodeConnectionUrl, 
-  copyToClipboard, 
-  readFromClipboard,
   isValidConnectionUrl,
   getRoleFromUrl
 } from "../../../shared/utils/index";
@@ -111,16 +109,16 @@ export class ConnectionManager {
       this.callbacks.onRemoteStream?.(stream);
     });
 
+    this.webrtcService.onCursorPing((cursorId) => {
+      this.callbacks.onCursorPing?.(cursorId);
+    });
+
     this.webrtcService.onCursorUpdate((data) => {
       this.callbacks.onCursorUpdate?.(data);
     });
 
     this.webrtcService.onChannelOpen((channelName) => {
       this.callbacks.onChannelOpen?.(channelName);
-    });
-
-    this.webrtcService.onCursorPing((cursorId) => {
-      this.callbacks.onCursorPing?.(cursorId);
     });
 
     this.webrtcService.onChannelClose((channelName) => {
@@ -169,14 +167,11 @@ export class ConnectionManager {
       // Encode a WebRTC SessionDescription to URL
       const offerUrl = await encodeConnectionUrl(PeerRole.SCREEN_SHARER, username, offer);
 
-      // Copy URL to clipboard
-      await copyToClipboard(offerUrl);
-
       //Setup connetion step as offer-created
       this.setConnectionPhase(ConnectionPhase.OFFER_CREATED);
       this.callbacks.onUrlGenerated?.(offerUrl); 
 
-      log.info("[ConnectionManager] Offer URL created and copied to clipboard");
+      log.info("[ConnectionManager] Offer URL created");
       return offerUrl;
     } catch (error) {
       this.handleError("Failed to start sharing", error);
@@ -191,7 +186,7 @@ export class ConnectionManager {
    * Accept answer URL from watcher
    * Called when sharer pastes the answer URL
    */
-  public async acceptAnswerUrl(): Promise<boolean> {
+  public async acceptAnswerUrl(offerUrl: string): Promise<boolean> {
     if (!this.acquireOperationLock()) return false;
     try {
       if (!this.webrtcService || this.role !== PeerRole.SCREEN_SHARER) {
@@ -200,25 +195,24 @@ export class ConnectionManager {
 
       this.setConnectionPhase(ConnectionPhase.CONNECTING);
 
-      // Read URL from clipboard
-      const url = await readFromClipboard();
-      if (!url) {
+      // Check Url exitsts
+      if (!offerUrl) {
         throw new Error("No URL in clipboard");
       }
 
       // Validate URL
-      if (!isValidConnectionUrl(url)) {
+      if (!isValidConnectionUrl(offerUrl)) {
         throw new Error("Invalid connection URL");
       }
 
       // Check it's an answer (from watcher)
-      const urlRole = getRoleFromUrl(url);
+      const urlRole = getRoleFromUrl(offerUrl);
       if (urlRole !== PeerRole.SCREEN_WATCHER) {
         throw new Error("Expected answer URL from watcher, got offer URL");
       }
 
       // Decode URL
-      const decoded = await decodeConnectionUrl(url);
+      const decoded = await decodeConnectionUrl(offerUrl);
       if (!decoded) {
         throw new Error("Failed to decode answer URL");
       }
@@ -227,7 +221,6 @@ export class ConnectionManager {
       await this.webrtcService.acceptAnswer(decoded.sdp);
 
       log.info(`[ConnectionManager] Accepted answer from: ${decoded.username}`);
-      // Connection state will change to "connected" via callback
       return true;
     } catch (error) {
       this.handleError("Failed to accept answer", error);
@@ -245,9 +238,9 @@ export class ConnectionManager {
    */
   public async joinSession(
     username: string, 
+    offerUrl: string,
     remoteVideo: HTMLVideoElement, 
-    config?: Partial<WebRTCServiceConfig>,
-    offerUrl?: string
+    config?: Partial<WebRTCServiceConfig>
   ): Promise<string | null> {
     if (!this.acquireOperationLock()) return null;
     try {
@@ -255,25 +248,24 @@ export class ConnectionManager {
       this.role = PeerRole.SCREEN_WATCHER;
       this.username = username;
 
-      // Use provided URL or fall back to clipboard
-      const url = offerUrl ?? await readFromClipboard();
-      if (!url) {
+      // Use provided URL
+      if (!offerUrl) {
         throw new Error("No session URL provided");
       }
 
       // Validate URL
-      if (!isValidConnectionUrl(url)) {
+      if (!isValidConnectionUrl(offerUrl)) {
         throw new Error("Invalid connection URL");
       }
 
       // Check it's an offer (from sharer)
-      const urlRole = getRoleFromUrl(url);
+      const urlRole = getRoleFromUrl(offerUrl);
       if (urlRole !== PeerRole.SCREEN_SHARER) {
         throw new Error("Expected offer URL from sharer, got answer URL");
       }
 
       // Decode URL
-      const decoded = await decodeConnectionUrl(url);
+      const decoded = await decodeConnectionUrl(offerUrl);
       if (!decoded) {
         throw new Error("Failed to decode offer URL");
       }
@@ -305,13 +297,10 @@ export class ConnectionManager {
       // Encode answer URL
       const answerUrl = await encodeConnectionUrl(PeerRole.SCREEN_WATCHER, username, answer);
 
-      // Copy to clipboard
-      await copyToClipboard(answerUrl);
-
       this.setConnectionPhase(ConnectionPhase.ANSWER_CREATED);
       this.callbacks.onUrlGenerated?.(answerUrl);
 
-      log.info("[ConnectionManager] Answer URL created and copied to clipboard");
+      log.info("[ConnectionManager] Answer URL created");
       return answerUrl;
     } catch (error) {
       this.handleError("Failed to join session", error);
