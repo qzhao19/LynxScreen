@@ -48,7 +48,7 @@
     }
 
     try {
-      const answerUrl = await joinSession(username, videoElement, sessionUrl.trim());
+      const answerUrl = await joinSession(username, sessionUrl, videoElement);
       
       if (answerUrl) {
         hasJoined = true;
