@@ -289,13 +289,13 @@ export async function startSharing(username: string): Promise<string | null> {
 /**
  * Accepts answer URL from watcher (for sharer)
  */
-export async function acceptAnswer(): Promise<boolean> {
+export async function acceptAnswer(offerUrl: string): Promise<boolean> {
   isLoading.set(true);
   errorMessage.set(null);
   
   try {
     const manager = getConnectionManager();
-    return await manager.acceptAnswerUrl();
+    return await manager.acceptAnswerUrl(offerUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to accept answer";
     errorMessage.set(message);
@@ -311,8 +311,8 @@ export async function acceptAnswer(): Promise<boolean> {
  */
 export async function joinSession(
   username: string, 
+  offerUrl: string,
   videoElement: HTMLVideoElement,
-  offerUrl?: string
 ): Promise<string | null> {
   isLoading.set(true);
   errorMessage.set(null);
@@ -332,7 +332,7 @@ export async function joinSession(
     };
     
     currentRole.set(PeerRole.SCREEN_WATCHER);
-    const url = await manager.joinSession(username, videoElement, config, offerUrl);
+    const url = await manager.joinSession(username, offerUrl, videoElement, config);
     
     if (!url) {
       currentRole.set(null);
