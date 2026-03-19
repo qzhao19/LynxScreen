@@ -24,16 +24,22 @@
   import { ConnectionPhase } from "../../../shared/types/index";
 
   let isAccepting = false;
+  let answerUrl = "";
 
   async function handleAcceptAnswer() {
+    if (!answerUrl.trim()) {
+      showToast("Please paste the watcher's answer URL", "error");
+      return;
+    }
+
     isAccepting = true;
     
     try {
-      const success = await acceptAnswer();
+      const success = await acceptAnswer(answerUrl.trim());
       if (success) {
         showToast("Answer accepted, connecting...", "success");
       } else {
-        showToast("Failed to accept answer. Make sure the watcher's URL is in your clipboard.", "error");
+        showToast("Failed to accept answer. Please check the URL and try again.", "error");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to accept answer";
@@ -80,7 +86,7 @@
             {#if $isConnected}
               Sharing Active
             {:else}
-              Setting Up Session
+              Session In Progress
             {/if}
           </h1>
           <ConnectionStatus compact />
@@ -101,18 +107,18 @@
         </div>
       {/if}
 
-      <!-- Offer URL section -->
+      <!-- Connection String section (with copy button via ConnectionUrl) -->
       {#if $generatedUrl}
         <section class="section">
           <ConnectionUrl 
             url={$generatedUrl}
-            label="Your Session URL"
-            hint="Share this URL with the watcher. It has been copied to your clipboard."
+            label="Connection String"
+            hint="Share this link with the watcher to join the session"
           />
         </section>
       {/if}
 
-      <!-- Accept answer section -->
+      <!-- Participant Connection section (input field for answer URL) -->
       {#if showAcceptSection}
         <section class="section">
           <div class="section-header">
@@ -122,28 +128,28 @@
               <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
               <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
-            <span>Accept Watcher</span>
+            <span>Watcher Connection</span>
           </div>
           
-          <p class="section-hint">
-            After the watcher generates their answer URL and copies it to their clipboard, 
-            ask them to send it to you. Copy the answer URL to your clipboard, then click the button below.
-          </p>
+          <input
+            class="answer-input"
+            type="text"
+            bind:value={answerUrl}
+            placeholder="Paste participant connection string..."
+            disabled={isAccepting || $isLoading}
+            on:keydown={(e) => e.key === "Enter" && handleAcceptAnswer()}
+          />
 
           <button 
             class="accept-button"
             on:click={handleAcceptAnswer}
-            disabled={isAccepting || $isLoading}
+            disabled={isAccepting || $isLoading || !answerUrl.trim()}
           >
             {#if isAccepting || $isLoading}
               <span class="spinner"></span>
-              Accepting...
+              Connecting...
             {:else}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-              Accept Answer from Clipboard
+              Connect Watcher
             {/if}
           </button>
         </section>
@@ -164,11 +170,15 @@
             showDisconnect={false}
           />
         </section>
+      {/if}
 
-        <section class="section">
-          <SessionTimer />
-        </section>
+      <!-- Session Timer (always visible once session started) -->
+      <section class="section timer-section">
+        <SessionTimer />
+      </section>
 
+      <!-- Disconnect button (when connected) -->
+      {#if showMediaControls}
         <button 
           class="disconnect-button"
           on:click={handleDisconnect}
@@ -214,18 +224,16 @@
     justify-content: center;
     width: 36px;
     height: 36px;
-    background: var(--color-bg-card-hover);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    color: var(--color-text-secondary);
+    background: var(--color-accent-red);
+    border: none;
+    border-radius: 50%;
+    color: white;
     cursor: pointer;
     transition: all var(--transition-fast);
   }
 
   .cancel-button:hover {
-    background: var(--color-accent-red);
-    border-color: var(--color-accent-red);
-    color: white;
+    opacity: 0.85;
   }
 
   .error-banner {
@@ -264,10 +272,30 @@
     color: var(--color-text-primary);
   }
 
-  .section-hint {
-    font-size: 0.85rem;
+  .answer-input {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--color-accent-green, #22c55e);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-size: 0.95rem;
+    transition: border-color var(--transition-fast);
+    box-sizing: border-box;
+  }
+
+  .answer-input::placeholder {
     color: var(--color-text-muted);
-    line-height: 1.6;
+  }
+
+  .answer-input:focus {
+    outline: none;
+    border-color: var(--color-accent-green-hover, #16a34a);
+  }
+
+  .answer-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .accept-button {
@@ -276,23 +304,29 @@
     justify-content: center;
     gap: var(--spacing-sm);
     padding: var(--spacing-md);
-    background: var(--color-accent-blue);
-    border: none;
+    background: var(--color-bg-card-hover);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    color: white;
+    color: var(--color-text-primary);
     font-size: 0.95rem;
     font-weight: 500;
     cursor: pointer;
-    transition: background var(--transition-fast);
+    transition: all var(--transition-fast);
   }
 
   .accept-button:hover:not(:disabled) {
-    background: var(--color-accent-blue-hover);
+    background: rgba(60, 70, 90, 0.9);
   }
 
   .accept-button:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .timer-section {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .disconnect-button {
