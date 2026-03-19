@@ -1,4 +1,4 @@
-import log from "electron-log";
+import log from "electron-log/renderer";
 import { DataChannelName } from "../../../shared/types/index";
 import { RemoteCursorState } from "../../../../shared/types/index";
 
