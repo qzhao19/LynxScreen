@@ -9,7 +9,7 @@ import { PeerRole } from "../../src/shared/types/index";
 import { URL_PROTOCOL } from "../../src/shared/constants/index";
 
 // Mock electron-log
-vi.mock("electron-log", () => ({
+vi.mock("electron-log/renderer", () => ({
   default: {
     debug: vi.fn(),
     info: vi.fn(),
