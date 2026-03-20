@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { copyToClipboard, readFromClipboard } from "../../src/shared/utils/clipboard";
-import log from "electron-log";
+import log from "electron-log/renderer";
 
 // Mock electron-log
-vi.mock("electron-log", () => ({
+vi.mock("electron-log/renderer", () => ({
   default: {
     debug: vi.fn(),
     info: vi.fn(),
