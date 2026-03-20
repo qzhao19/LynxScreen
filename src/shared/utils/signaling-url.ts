@@ -1,4 +1,4 @@
-import log from "electron-log";
+import log from "electron-log/renderer";
 import { PeerRole } from "../types/index";
 import { URL_PROTOCOL } from "../constants/index";
 
