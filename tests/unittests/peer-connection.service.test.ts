@@ -4,7 +4,7 @@ import { PeerConnectionService } from "../../src/renderer/core/webrtc/connection
 import { WebRTCConnectionConfig } from "../../src/shared/types/index";
 
 // Mock electron-log
-vi.mock("electron-log", () => ({
+vi.mock("electron-log/renderer", () => ({
   default: {
     error: vi.fn(),
     warn: vi.fn(),
