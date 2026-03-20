@@ -4,7 +4,7 @@ import { RemoteCursorState } from "../../src/shared/types/index";
 import { WebRTCSharerConfig, WebRTCWatcherConfig } from "../../src/renderer/shared/types/index";
 
 // Mock electron-log
-vi.mock("electron-log", () => ({
+vi.mock("electron-log/renderer", () => ({
   default: {
     error: vi.fn(),
     warn: vi.fn(),
