@@ -1,18 +1,17 @@
-import log from "electron-log";
+import log from "electron-log/renderer";
 
 /**
  * Copies text to clipboard with fallbacks for Electron and browser environments.
  * Prioritizes Electron clipboard, then navigator.clipboard.
  * 
  * @param text - Text to copy
- * @returns Promise that resolves when copied successfully
  */
 export async function copyToClipboard(text: string): Promise<void> {
   // Try use Electron clipboard
   try {
     const electronClipboard = (globalThis as any).electron?.clipboard;
     if (electronClipboard?.writeText) {
-      electronClipboard.writeText(text);
+      await electronClipboard.writeText(text);
       log.debug("[Clipboard] Copied via Electron clipboard");
       return;
     }
@@ -38,15 +37,13 @@ export async function copyToClipboard(text: string): Promise<void> {
 /**
  * Reads text from clipboard
  * Prioritizes Electron clipboard, then navigator.clipboard.
- * 
- * @returns Promise resolving to clipboard text or null if failed
  */
 export async function readFromClipboard(): Promise<string | null> {
   // Try use Electron clipboard
   try {
     const electronClipboard = (globalThis as any).electron?.clipboard;
     if (electronClipboard?.readText) {
-      const text = electronClipboard.readText();
+      const text = await electronClipboard.readText();
       log.debug("[Clipboard] Read via Electron clipboard");
       return text;
     }
