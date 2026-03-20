@@ -20,7 +20,7 @@ if (typeof globalThis.TextEncoder === "undefined") {
 // ============== Mocks - Must be before imports ==============
 
 // Mock electron-log
-vi.mock("electron-log", () => ({
+vi.mock("electron-log/renderer", () => ({
   default: {
     error: vi.fn(),
     warn: vi.fn(),
@@ -456,16 +456,13 @@ describe("P2P Connection E2E Tests", () => {
       expect(sharerCallbacks.onPhaseChange).toHaveBeenCalledWith(ConnectionPhase.INITIALIZING);
       expect(sharerCallbacks.onUrlGenerated).toHaveBeenCalledWith(offerUrl);
       
-      // Verify URL was copied to clipboard
-      expect(clipboardContent).toBe(offerUrl);
-      
       // ==================== Step 2: Simulate URL transfer ====================
       // In real scenario, Sharer sends URL to Watcher via chat tool
-      // Here we simulate by keeping the clipboard content
+      // ConnectionManager no longer auto-copies to clipboard; the UI layer handles that
       
       // ==================== Step 3: Watcher processes Offer URL ====================
       // Watcher pastes URL, parses it, generates Answer
-      const answerUrl = await watcherManager.joinSession("TestWatcher", mockVideoElement);
+      const answerUrl = await watcherManager.joinSession("TestWatcher", offerUrl!,  mockVideoElement);
       
       // Verify answer URL was generated
       expect(answerUrl).not.toBeNull();
@@ -478,12 +475,9 @@ describe("P2P Connection E2E Tests", () => {
       expect(watcherCallbacks.onPhaseChange).toHaveBeenCalledWith(ConnectionPhase.INITIALIZING);
       expect(watcherCallbacks.onUrlGenerated).toHaveBeenCalledWith(answerUrl);
       
-      // Verify Answer URL was copied to clipboard
-      expect(clipboardContent).toBe(answerUrl);
-      
       // ==================== Step 4: Sharer accepts Answer ====================
       // Sharer pastes Answer URL, parses it, establishes connection
-      const accepted = await sharerManager.acceptAnswerUrl();
+      const accepted = await sharerManager.acceptAnswerUrl(answerUrl!);
       
       // Verify answer was accepted
       expect(accepted).toBe(true);
@@ -534,14 +528,14 @@ describe("P2P Connection E2E Tests", () => {
     it("should handle invalid offer URL gracefully", async () => {
       clipboardContent = "invalid-url";
       
-      const result = await watcherManager.joinSession("Watcher", mockVideoElement);
+      const result = await watcherManager.joinSession("Watcher", "invalid-url", mockVideoElement);
       
       expect(result).toBeNull();
       expect(watcherCallbacks.onError).toHaveBeenCalled();
     });
     
     it("should handle accepting answer before starting sharing", async () => {
-      const result = await sharerManager.acceptAnswerUrl();
+      const result = await sharerManager.acceptAnswerUrl("lynxscreen://watch?username=test&token=abc");
       expect(result).toBe(false);
     });
   });
@@ -567,8 +561,9 @@ describe("P2P Connection E2E Tests", () => {
     });
     
     it("should correctly identify watcher role", async () => {
+      const offerUrl = await sharerManager.startSharing("Sharer");
       await sharerManager.startSharing("Sharer");
-      await watcherManager.joinSession("Watcher", mockVideoElement);
+      await watcherManager.joinSession("Watcher", offerUrl!, mockVideoElement);
       const service = watcherManager.getWebRTCService();
       
       expect(service?.isScreenSharer()).toBe(false);
