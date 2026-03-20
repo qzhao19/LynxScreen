@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { currentPage } from "./stores/app";
-  import { Toast, HelpButton } from "./components/feedback";
-  import { Home, ScreenWatcher, ScreenSharer, ActiveSharing, Settings } from "./pages";
+  import { currentPage } from "./frontend/stores/app";
+  import { Toast, HelpButton } from "./frontend/components/feedback";
+  import { Home, ScreenWatcher, ScreenSharer, ActiveSharing, Settings } from "./frontend/pages";
 </script>
 
 <main>
