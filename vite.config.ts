@@ -20,6 +20,23 @@ export default defineConfig({
             }
           }
         }
+      },
+      {
+        entry: path.resolve(__dirname, "src/preload/index.ts"),
+        onstart(args) {
+          args.reload();
+        },
+        vite: {
+          build: {
+            outDir: path.resolve(__dirname, "dist-electron"),
+            rollupOptions: {
+              external: ["electron"],
+              output: {
+                entryFileNames: "preload.js"
+              }
+            }
+          }
+        }
       }
     ]),
     renderer()
