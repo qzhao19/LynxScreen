@@ -5,7 +5,7 @@ import {
   PeerRole, 
   RemoteCursorState 
 } from "../../../shared/types/index";
-import type { WebRTCServiceConfig } from "../../shared/types/index";
+import { WebRTCServiceConfig } from "../../shared/types/index";
 import { showToast, appSettings } from "./app";
 
 // ============== Connection Manager Singleton ==============
@@ -35,7 +35,10 @@ export const hasAudioInput = writable<boolean>(false);
 export const remoteStream = writable<MediaStream | null>(null);
 
 // Cursor state stores
+export const cursorPositionsChannelReady = writable<boolean>(false);
+export const cursorPingChannelReady = writable<boolean>(false);
 export const cursorChannelsReady = writable<boolean>(false);
+export const lastCursorPingAt = writable<number | null>(null);
 export const remoteCursors = writable<Map<string, RemoteCursorState>>(new Map());
 
 // ICE connection state
@@ -132,7 +135,8 @@ function setupConnectionCallbacks(): void {
       
       if (phase === ConnectionPhase.CONNECTED) {
         updateMediaStates();
-        startCursorChannelCheck();
+        startStaleCursorCheck();
+        startCursorChannelTimeout();
       }
       
       if (phase === ConnectionPhase.DISCONNECTED) {
@@ -162,11 +166,35 @@ function setupConnectionCallbacks(): void {
     },
 
     onCursorUpdate: (data: RemoteCursorState) => {
+      const now = Date.now();
       remoteCursors.update(cursors => {
         const newCursors = new Map(cursors);
         newCursors.set(data.id, data);
         return newCursors;
       });
+
+      cursorLastSeen.set(data.id, now);
+      lastCursorPingAt.set(now);
+    },
+
+    onCursorPing: (cursorId: string) => {
+      const now = Date.now();
+      cursorLastSeen.set(cursorId, now);
+      lastCursorPingAt.set(now);
+    },
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    onChannelOpen: (_channelName: string) => {
+      syncCursorChannelStates();
+    },
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    onChannelClose: (_channelName: string) => {
+      syncCursorChannelStates();
+
+      if (!connectionManagerInstance?.isConnected()) {
+        cursorLastSeen.clear();
+      }
     },
   });
 }
@@ -181,61 +209,114 @@ function updateMediaStates(): void {
   hasAudioInput.set(connectionManagerInstance.hasAudioInput());
 }
 
-let cursorCheckInterval: ReturnType<typeof setInterval> | null = null;
-let cursorCheckTimeout: ReturnType<typeof setTimeout> | null = null;
+const CURSOR_CHANNEL_TIMEOUT_MS = 10000;
+const CURSOR_STALE_TIMEOUT_MS = 5000;
+const CURSOR_STALE_CHECK_INTERVAL_MS = 1000;
+const cursorLastSeen = new Map<string, number>();
 
-function stopCursorChannelCheck(): void {
-  if (cursorCheckInterval) {
-    clearInterval(cursorCheckInterval);
-    cursorCheckInterval = null;
+let cursorChannelTimeout: ReturnType<typeof setTimeout> | null = null;
+let staleCheckInterval: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Single source of truth for all cursor channel states.
+ * Queries the manager for real channel readiness and updates all stores.
+ */
+function syncCursorChannelStates(): void {
+  if (!connectionManagerInstance) {
+    cursorPositionsChannelReady.set(false);
+    cursorPingChannelReady.set(false);
+    cursorChannelsReady.set(false);
+    return;
   }
 
-  if (cursorCheckTimeout) {
-    clearTimeout(cursorCheckTimeout);
-    cursorCheckTimeout = null;
+  const positionsReady = connectionManagerInstance.isCursorPositionsChannelReady();
+  const pingReady = connectionManagerInstance.isCursorPingChannelReady();
+
+  cursorPositionsChannelReady.set(positionsReady);
+  cursorPingChannelReady.set(pingReady);
+
+  const allReady = positionsReady && pingReady;
+  cursorChannelsReady.set(allReady);
+
+  // Cancel timeout once all channels are ready
+  if (allReady) {
+    stopCursorChannelTimeout();
   }
 }
 
-const CURSOR_CHECK_INTERVAL_MS = 100;
-const CURSOR_CHECK_TIMEOUT_MS = 10000;
-
-function startCursorChannelCheck(): void {
-  // Clear any previous timers
-  stopCursorChannelCheck();
-  
-  // Reset state for a new check
-  cursorChannelsReady.set(false);
-  
-  cursorCheckInterval = setInterval(() => {
-    if (connectionManagerInstance?.areCursorChannelsReady()) {
-      cursorChannelsReady.set(true);
-      stopCursorChannelCheck();
-    }
-  }, CURSOR_CHECK_INTERVAL_MS);
-  
-  // Timeout after 10 seconds
-  cursorCheckTimeout = setTimeout(() => {
-    stopCursorChannelCheck();
+/**
+ * Starts a timeout that notifies the user if cursor channels
+ * don't become ready within the expected time window.
+ */
+function startCursorChannelTimeout(): void {
+  stopCursorChannelTimeout();
     
-    // Only notify if connected
-    if (connectionManagerInstance?.isConnected()) {
-      const message = "Cursor sync is not available (data channels not ready).";
-      showToast(message, "info");
+  cursorChannelTimeout = setTimeout(() => {
+    cursorChannelTimeout = null;
+
+    // Only notify if still connected but channels never opened
+    if (connectionManagerInstance?.isConnected() && 
+        !connectionManagerInstance.areCursorChannelsReady()) {
+      showToast("Cursor sync is not available (data channels not ready).", "info");
     }
-  }, CURSOR_CHECK_TIMEOUT_MS);
+  }, CURSOR_CHANNEL_TIMEOUT_MS);
+}
+
+function stopCursorChannelTimeout(): void {
+  if (cursorChannelTimeout) {
+    clearTimeout(cursorChannelTimeout);
+    cursorChannelTimeout = null;
+  }
+}
+
+function startStaleCursorCheck(): void {
+  if (staleCheckInterval) return;
+  staleCheckInterval = setInterval(() => {
+    const now = Date.now();
+    remoteCursors.update(cursors => {
+      // Create shadow copy of current Map 
+      const newCursors = new Map(cursors);
+      let changed = false;
+      for (const [id] of newCursors) {
+        // Get the last active timestamp for this cursor, 
+        // the default value is 0 
+        const lastSeen = cursorLastSeen.get(id) ?? 0;
+        // Check if the inactivity timeout has been exceeded
+        // If true, delete inactivity cursor
+        if (now - lastSeen > CURSOR_STALE_TIMEOUT_MS) {
+          newCursors.delete(id);
+          cursorLastSeen.delete(id);
+          changed = true;
+        }
+      }
+      return changed ? newCursors : cursors;
+    });
+  }, CURSOR_STALE_CHECK_INTERVAL_MS);
+}
+
+function stopStaleCursorCheck(): void {
+  if (staleCheckInterval) {
+    clearInterval(staleCheckInterval);
+    staleCheckInterval = null;
+  }
+  cursorLastSeen.clear();
 }
 
 function resetConnectionStores(options: { clearError?: boolean } = {}): void {
   generatedUrl.set("");
   remoteStream.set(null);
   iceConnectionState.set(null);
+  cursorPositionsChannelReady.set(false);
+  cursorPingChannelReady.set(false);
   cursorChannelsReady.set(false);
+  lastCursorPingAt.set(null);
   remoteCursors.set(new Map());
   isMicrophoneEnabled.set(false);
   isDisplayEnabled.set(false);
   hasAudioInput.set(false);
   isLoading.set(false);
-  stopCursorChannelCheck();
+  stopCursorChannelTimeout();
+  stopStaleCursorCheck();
   currentRole.set(null);
   
   if (options.clearError) {
