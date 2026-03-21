@@ -330,6 +330,17 @@ export class ConnectionManager {
   }
 
   /**
+   * Sends cursor ping
+   */
+  public pingRemoteCursor(cursorId: string): boolean {
+    if (!this.webrtcService) {
+      log.warn("[ConnectionManager] Cannot ping cursor: not connected");
+      return false;
+    }
+    return this.webrtcService.pingRemoteCursor(cursorId);
+  }
+
+  /**
    * Updates remote cursor position (called by watcher)
    */
   public updateRemoteCursor(cursorData: RemoteCursorState): boolean {
