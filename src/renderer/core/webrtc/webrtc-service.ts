@@ -314,11 +314,11 @@ export class WebRTCService {
   // ============== Cursor Control ==============
 
   public updateRemoteCursor(cursorData: RemoteCursorState): boolean {
-    return this.dataChannelService.sendCursorUpdate(cursorData);
+    return this.dataChannelService.updateRemoteCursor(cursorData);
   }
 
   public pingRemoteCursor(cursorId: string): boolean {
-    return this.dataChannelService.sendCursorPing(cursorId);
+    return this.dataChannelService.pingRemoteCursor(cursorId);
   }
 
   public toggleRemoteCursors(enabled: boolean): boolean {
