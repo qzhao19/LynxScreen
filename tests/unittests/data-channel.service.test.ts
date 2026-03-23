@@ -278,7 +278,7 @@ describe("DataChannelService", () => {
     });
   });
 
-  describe("sendCursorUpdate", () => {
+  describe("updateRemoteCursor", () => {
     it("should send cursor update successfully when cursors enabled and channel ready", () => {
       service.createChannels(mockPeerConnection);
       service.toggleCursors(true);
@@ -291,7 +291,7 @@ describe("DataChannelService", () => {
         y: 200
       };
 
-      const result = service.sendCursorUpdate(cursorData);
+      const result = service.updateRemoteCursor(cursorData);
 
       expect(result).toBe(true);
       expect(mockCursorPositionsChannel.send).toHaveBeenCalledWith(JSON.stringify(cursorData));
@@ -309,7 +309,7 @@ describe("DataChannelService", () => {
         y: 200
       };
 
-      const result = service.sendCursorUpdate(cursorData);
+      const result = service.updateRemoteCursor(cursorData);
 
       expect(result).toBe(false);
       expect(mockCursorPositionsChannel.send).not.toHaveBeenCalled();
@@ -327,7 +327,7 @@ describe("DataChannelService", () => {
         y: 200
       };
 
-      const result = service.sendCursorUpdate(cursorData);
+      const result = service.updateRemoteCursor(cursorData);
 
       expect(result).toBe(false);
     });
@@ -345,7 +345,7 @@ describe("DataChannelService", () => {
         y: 200
       };
 
-      const result = service.sendCursorUpdate(cursorData);
+      const result = service.updateRemoteCursor(cursorData);
 
       expect(result).toBe(false);
     });
@@ -365,18 +365,18 @@ describe("DataChannelService", () => {
         y: 200
       };
 
-      const result = service.sendCursorUpdate(cursorData);
+      const result = service.updateRemoteCursor(cursorData);
 
       expect(result).toBe(false);
     });
   });
 
-  describe("sendCursorPing", () => {
+  describe("pingRemoteCursor", () => {
     it("should send cursor ping successfully when cursors enabled and channel ready", () => {
       service.createChannels(mockPeerConnection);
       service.toggleCursors(true);
 
-      const result = service.sendCursorPing("cursor-1");
+      const result = service.pingRemoteCursor("cursor-1");
 
       expect(result).toBe(true);
       expect(mockCursorPingChannel.send).toHaveBeenCalledWith("cursor-1");
@@ -386,7 +386,7 @@ describe("DataChannelService", () => {
       service.createChannels(mockPeerConnection);
       // cursors disabled by default
 
-      const result = service.sendCursorPing("cursor-1");
+      const result = service.pingRemoteCursor("cursor-1");
 
       expect(result).toBe(false);
       expect(mockCursorPingChannel.send).not.toHaveBeenCalled();
@@ -395,7 +395,7 @@ describe("DataChannelService", () => {
     it("should return false when channel is not ready", () => {
       service.toggleCursors(true);
 
-      const result = service.sendCursorPing("cursor-1");
+      const result = service.pingRemoteCursor("cursor-1");
 
       expect(result).toBe(false);
     });
@@ -407,7 +407,7 @@ describe("DataChannelService", () => {
         throw new Error("Send failed");
       });
 
-      const result = service.sendCursorPing("cursor-1");
+      const result = service.pingRemoteCursor("cursor-1");
 
       expect(result).toBe(false);
     });
@@ -670,7 +670,7 @@ describe("DataChannelService", () => {
           y: 200
         };
 
-        const result = watcherService.sendCursorUpdate(cursorData);
+        const result = watcherService.updateRemoteCursor(cursorData);
 
         expect(result).toBe(true);
       });
