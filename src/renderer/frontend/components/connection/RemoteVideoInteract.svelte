@@ -4,19 +4,19 @@
     remoteStream, 
     isConnected,
     connectionPhase,
-    sendCursorUpdate,
-    setupCursorSync,
+    updateRemoteCursor,
+    ensureRemoteCursorSyncEnabled,
+    canSyncCursor,
     cursorChannelsReady,
     appSettings,
     phaseDisplayText
   } from "../../stores/index";
 
   // Props
-  export let enableCursorSync = true;
   export let showOverlay = true;
   export let aspectRatio = "16 / 9";
 
-  // Callback props (replace createEventDispatcher)
+  // Callback props
   export let onReady: ((data: { videoElement: HTMLVideoElement }) => void) | undefined = undefined;
   export let onCursorMove: ((data: { x: number; y: number }) => void) | undefined = undefined;
 
@@ -35,8 +35,8 @@
   }
 
   // Setup cursor sync when connected and channels ready
-  $: if ($isConnected && $cursorChannelsReady && enableCursorSync && !cursorSyncSetup) {
-    setupCursorSync();
+  $: if ($isConnected && $cursorChannelsReady && !cursorSyncSetup) {
+    ensureRemoteCursorSyncEnabled();
     cursorSyncSetup = true;
   }
 
@@ -55,8 +55,6 @@
     renderWidth: number;
     renderHeight: number;
   } | null {
-
-    // Get actual video resolution for the visible area after cropping
     const vw = video.videoWidth;
     const vh = video.videoHeight;
 
@@ -84,7 +82,7 @@
   }
 
   function handleMouseMove(event: MouseEvent) {
-    if (!$isConnected || !enableCursorSync || !$cursorChannelsReady) return;
+    if (!$canSyncCursor) return;
     if (!containerElement) return;
 
     const now = Date.now();
@@ -110,7 +108,7 @@
       y
     };
     
-    sendCursorUpdate(cursorData);
+    updateRemoteCursor(cursorData);
     onCursorMove?.({ x, y });
   }
 
@@ -146,7 +144,7 @@
     </div>
   {/if}
 
-  {#if enableCursorSync && $cursorChannelsReady}
+  {#if $canSyncCursor}
     <div class="cursor-sync-indicator" title="Cursor sync enabled">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
         <path d="M13.64 21.97C13.14 22.21 12.54 22 12.31 21.5L10.13 16.76L7.62 18.78C7.45 18.92 7.24 19 7.02 19C6.55 19 6.16 18.61 6.16 18.14V5.51C6.16 5.04 6.55 4.65 7.02 4.65C7.25 4.65 7.47 4.74 7.64 4.89L19.14 14.89C19.5 15.21 19.55 15.75 19.24 16.12C19.12 16.27 18.95 16.38 18.76 16.42L14.5 17.33L16.69 22.07C16.91 22.58 16.7 23.18 16.19 23.4C15.67 23.63 15.07 23.41 14.84 22.91L13.64 21.97Z"/>
