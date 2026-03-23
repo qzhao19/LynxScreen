@@ -23,7 +23,6 @@ export class DataChannelService {
 
   /**
    * Checks if a data channel is ready for communication.
-   * @param channel - The RTCDataChannel to check
    */
   private isChannelReady(channel: RTCDataChannel | null): boolean {
     return channel !== null && channel.readyState === "open";
@@ -31,7 +30,6 @@ export class DataChannelService {
 
   /**
    * Safely closes a data channel and removes all event handlers.
-   * @param channel - The RTCDataChannel to close
    */
   private closeChannelSilently(channel: RTCDataChannel | null): void {
     if (!channel) return;
@@ -48,7 +46,6 @@ export class DataChannelService {
 
   /**
    * Sets up event handlers for a data channel.
-   * @param channel - The RTCDataChannel to setup
    */
   private setupDataChannel(channel: RTCDataChannel): void {
     channel.onopen = () => {
@@ -112,7 +109,6 @@ export class DataChannelService {
 
   /**
    * Creates data channels on the given RTCPeerConnection.
-   * @param pc - The RTCPeerConnection to create channels on
    */
   public createChannels(pc: RTCPeerConnection): void {
     this.closeChannelSilently(this.cursorPositionsChannel);
@@ -129,7 +125,6 @@ export class DataChannelService {
 
   /**
    * Handles an incoming data channel from the remote peer.
-   * @param channel - The incoming RTCDataChannel
    */
   public handleIncomingChannel(channel: RTCDataChannel): void {
     if (
@@ -149,7 +144,6 @@ export class DataChannelService {
 
   /**
    * Registers a callback for cursor position updates.
-   * @param callback - Function to call when cursor update is received
    */
   public onCursorUpdate(callback: (data: RemoteCursorState) => void): void {
     this.onCursorUpdateCallback = callback;
@@ -157,7 +151,6 @@ export class DataChannelService {
 
   /**
    * Registers a callback for cursor ping messages.
-   * @param callback - Function to call when cursor ping is received
    */
   public onCursorPing(callback: (cursorId: string) => void): void {
     this.onCursorPingCallback = callback;
@@ -165,7 +158,6 @@ export class DataChannelService {
 
   /**
    * Registers a callback for when a channel opens.
-   * @param callback - Function to call when channel opens
    */
   public onChannelOpen(callback: (channelName: string) => void): void {
     this.onChannelOpenCallback = callback;
@@ -173,7 +165,6 @@ export class DataChannelService {
 
   /**
    * Registers a callback for when a channel closes.
-   * @param callback - Function to call when channel closes
    */
   public onChannelClose(callback: (channelName: string) => void): void {
     this.onChannelCloseCallback = callback;
@@ -181,9 +172,8 @@ export class DataChannelService {
 
   /**
    * Sends cursor position update to the remote peer.
-   * @param data - The cursor state to send
    */
-  public sendCursorUpdate(data: RemoteCursorState): boolean {
+  public updateRemoteCursor(data: RemoteCursorState): boolean {
     if (!this.cursorsEnabled) return false;
 
     if (!this.isChannelReady(this.cursorPositionsChannel)) {
@@ -202,9 +192,8 @@ export class DataChannelService {
 
   /**
    * Sends cursor ping to the remote peer.
-   * @param cursorId - The cursor ID to ping
    */
-  public sendCursorPing(cursorId: string): boolean {
+  public pingRemoteCursor(cursorId: string): boolean {
     if (!this.cursorsEnabled) return false;
 
     if (!this.isChannelReady(this.cursorPingChannel)) {

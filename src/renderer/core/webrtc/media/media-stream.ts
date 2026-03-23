@@ -123,7 +123,6 @@ export class MediaStreamService {
 
   /**
    * Registers a callback function to be invoked when the display media stream ends.
-   * @param callback - The function to call when the display stream ends.
    */
   public onDisplayEnd(callback: () => void): void {
     this.onDisplayEndCallback = callback;
@@ -163,7 +162,6 @@ export class MediaStreamService {
 
   /**
    * Enables or disables all audio tracks.
-   * @param enabled - True to enable, false to disable audio tracks.
    */
   public toggleAudioTrack(enabled: boolean): void {
     if (!this.audioStream) return;
@@ -174,7 +172,6 @@ export class MediaStreamService {
 
   /**
    * Enables or disables all video tracks in the display stream.
-   * @param enabled - True to enable, false to disable video tracks.
    */
   public toggleVideoTrack(enabled: boolean): void {
     if (!this.displayStream) return;
