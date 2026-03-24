@@ -5,9 +5,8 @@
     isConnected,
     connectionPhase,
     updateRemoteCursor,
-    ensureRemoteCursorSyncEnabled,
+    pingRemoteCursor,
     canSyncCursor,
-    cursorChannelsReady,
     appSettings,
     phaseDisplayText
   } from "../../stores/index";
@@ -22,7 +21,6 @@
 
   let videoElement: HTMLVideoElement;
   let containerElement: HTMLDivElement;
-  let cursorSyncSetup = false;
 
   // Attach stream to video element
   $: if (videoElement) {
@@ -34,20 +32,34 @@
     }
   }
 
-  // Setup cursor sync when connected and channels ready
-  $: if ($isConnected && $cursorChannelsReady && !cursorSyncSetup) {
-    ensureRemoteCursorSyncEnabled();
-    cursorSyncSetup = true;
-  }
-
-  $: if (!$isConnected) {
-    cursorSyncSetup = false;
-  }
-
   // Generate a fixed cursor ID
   const localCursorId = crypto.randomUUID();
   let lastCursorSendTime = 0;
   const CURSOR_THROTTLE_MS = 50;
+
+  // Cursor ping heartbeat
+  const CURSOR_PING_INTERVAL_MS = 1500;
+  let pingInterval: ReturnType<typeof setInterval> | null = null;
+
+  function startCursorPing() {
+    stopCursorPing();
+    pingInterval = setInterval(() => {
+      pingRemoteCursor(localCursorId);
+    }, CURSOR_PING_INTERVAL_MS);
+  }
+
+  function stopCursorPing() {
+    if (pingInterval) {
+      clearInterval(pingInterval);
+      pingInterval = null;
+    }
+  }
+
+  $: if ($canSyncCursor) {
+    startCursorPing();
+  } else {
+    stopCursorPing();
+  }
 
   function getContainedVideoRect(video: HTMLVideoElement): {
     offsetX: number;
@@ -117,7 +129,7 @@
   });
 
   onDestroy(() => {
-    cursorSyncSetup = false;
+    stopCursorPing();
   });
   
   $: overlayText = phaseDisplayText[$connectionPhase] || "Connecting...";
