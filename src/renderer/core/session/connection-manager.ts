@@ -391,7 +391,6 @@ export class ConnectionManager {
 
   /**
    * Sets microphone enabled state
-   * @param enabled - Whether to enable microphone
    */
   public async setMicrophoneEnabled(enabled: boolean): Promise<void> {
     this.webrtcService?.setMicrophoneEnabled(enabled);
@@ -410,7 +409,6 @@ export class ConnectionManager {
 
   /**
    * Sets display stream enabled state
-   * @param enabled - Whether to enable display stream
    */
   public setDisplayStreamEnabled(enabled: boolean): void {
     this.webrtcService?.setDisplayStreamEnabled(enabled);
