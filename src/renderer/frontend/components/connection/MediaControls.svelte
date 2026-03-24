@@ -23,9 +23,9 @@
   export let onToggleDisplay: ((data: { enabled: boolean }) => void) | undefined = undefined;
   export let onDisconnect: (() => void) | undefined = undefined;
 
-  function handleToggleMicrophone() {
+  async function handleToggleMicrophone() {
     if (!$isConnected) return;
-    toggleMicrophone();
+    await toggleMicrophone();
     const enabled = $isMicrophoneEnabled;
     showToast(enabled ? "Microphone on" : "Microphone off", "info");
     onToggleMicrophone?.({ enabled });
