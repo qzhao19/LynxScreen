@@ -5,8 +5,8 @@
     ConnectionStatus,
     ConnectionUrl,
     MediaControls,
-    RemoteCursors,
-    RemoteVideo,
+    RemoteCursorDisplay,
+    RemoteVideoInteract,
     SessionTimer
   } from "../components/connection";
   import { navigateTo, showToast, appSettings } from "../stores/app";
@@ -48,11 +48,11 @@
     }
 
     try {
-      const answerUrl = await joinSession(username, sessionUrl, videoElement);
+      const answerUrl = await joinSession(username.trim(), sessionUrl.trim(), videoElement);
       
       if (answerUrl) {
         hasJoined = true;
-        showToast("Answer URL generated and copied to clipboard. Send it to the sharer.", "success");
+        showToast("Answer URL generated. Share it with the sharer.", "success");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to join session";
@@ -180,7 +180,7 @@
         <ConnectionUrl 
           url={$generatedUrl}
           label="Your Answer URL"
-          hint="This URL has been copied to your clipboard. Send it to the sharer so they can accept your connection."
+          hint="This URL is ready to share. Send it to the sharer so they can accept your connection."
         />
 
         <div class="waiting-hint">
@@ -195,19 +195,18 @@
   {#if showVideo}
     <Card>
       <div class="video-section" use:handleContainerResize>
-        <RemoteVideo 
-          enableCursorSync={true}
+        <RemoteVideoInteract 
           onReady={handleVideoReady}
         >
           <svelte:fragment slot="controls">
             {#if $cursorChannelsReady}
-              <RemoteCursors 
+              <RemoteCursorDisplay 
                 containerWidth={videoContainerWidth}
                 containerHeight={videoContainerHeight}
               />
             {/if}
           </svelte:fragment>
-        </RemoteVideo>
+        </RemoteVideoInteract>
       </div>
     </Card>
 
