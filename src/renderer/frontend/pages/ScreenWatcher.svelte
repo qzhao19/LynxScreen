@@ -70,6 +70,12 @@
     }
   }
 
+  async function handleRetry() {
+    await resetConnection();
+    hasJoined = false;
+    sessionUrl = "";
+  }
+
   async function handleBack() {
     if (hasJoined || $isConnected) {
       await resetConnection();
@@ -98,7 +104,10 @@
   }
 
   $: phase = $connectionPhase;
-  $: showJoinForm = !hasJoined && phase === ConnectionPhase.IDLE;
+  $: showJoinForm = !hasJoined && (
+    phase === ConnectionPhase.IDLE || 
+    phase === ConnectionPhase.DISCONNECTED
+  );
   $: showAnswerUrl = hasJoined && $generatedUrl && !$isConnected;
   $: showVideo = hasJoined;
   $: showError = $errorMessage && phase === ConnectionPhase.ERROR;
@@ -113,7 +122,6 @@
     Back
   </button>
 
-  <!-- Join form (before joining) -->
   {#if showJoinForm}
     <Card>
       <div class="watch-content">
@@ -158,20 +166,18 @@
     </Card>
   {/if}
 
-  <!-- Error display -->
   {#if showError}
     <Card>
       <div class="error-banner">
         <span class="error-icon">❌</span>
         <span class="error-text">{$errorMessage}</span>
-        <button class="retry-button" on:click={() => { hasJoined = false; sessionUrl = ""; }}>
+        <button class="retry-button" on:click={handleRetry}>
           Try Again
         </button>
       </div>
     </Card>
   {/if}
 
-  <!-- Answer URL (after joining, before connected) -->
   {#if showAnswerUrl}
     <Card>
       <div class="answer-section">
@@ -191,13 +197,10 @@
     </Card>
   {/if}
 
-  <!-- Video section (after joining) -->
-  {#if showVideo}
+  <div class="video-section-wrapper" class:video-hidden={!showVideo} aria-hidden={!showVideo}>
     <Card>
       <div class="video-section" use:handleContainerResize>
-        <RemoteVideoInteract 
-          onReady={handleVideoReady}
-        >
+        <RemoteVideoInteract onReady={handleVideoReady}>
           <svelte:fragment slot="controls">
             {#if $cursorChannelsReady}
               <RemoteCursorDisplay 
@@ -210,8 +213,7 @@
       </div>
     </Card>
 
-    <!-- Controls bar (when connected) -->
-    {#if $isConnected}
+    {#if showVideo && $isConnected}
       <Card>
         <div class="controls-bar">
           <div class="controls-left">
@@ -219,9 +221,9 @@
           </div>
 
           <MediaControls 
-            compact
-            showDisplay={false}
-            showDisconnect={false}
+            compact 
+            showDisplay={false} 
+            showDisconnect={false} 
           />
 
           <div class="controls-right">
@@ -240,10 +242,25 @@
         </div>
       </Card>
     {/if}
-  {/if}
+  </div>
 </PageContainer>
 
 <style>
+  .video-section-wrapper.video-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    pointer-events: none;
+  }
+
+  .video-section-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
+
   .back-button {
     display: flex;
     align-items: center;
