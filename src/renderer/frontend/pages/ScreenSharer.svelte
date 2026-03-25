@@ -28,10 +28,10 @@
     isStarting = true;
     
     try {
-      const url = await startSharing(username);
+      const url = await startSharing(username.trim());
       
       if (url) {
-        showToast("Session created, URL copied to clipboard", "success");
+        showToast("Session created — URL ready to share", "success");
         navigateTo("active-sharing");
       }
     } catch (error) {
