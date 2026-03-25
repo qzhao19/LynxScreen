@@ -120,8 +120,9 @@ function setupConnectionCallbacks(): void {
         resetConnectionStores({ clearError: true });
       }
 
+      // Preserve error message so pages can display inline error
       if (phase === ConnectionPhase.ERROR) {
-        resetConnectionStores({ clearError: true });
+        resetConnectionStores({ clearError: false });
       }
     },
 
