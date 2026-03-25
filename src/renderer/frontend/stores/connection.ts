@@ -113,7 +113,7 @@ function setupConnectionCallbacks(): void {
         syncCursorEnabledState();
         startStaleCursorCheck();
         startCursorChannelTimeout();
-        tryAutoEnableCursorSync();
+        tryEnableCursorSync();
       }
 
       if (phase === ConnectionPhase.DISCONNECTED) {
@@ -164,7 +164,7 @@ function setupConnectionCallbacks(): void {
     onChannelOpen: (_channelName: string) => {
       syncCursorChannelStates();
       syncCursorEnabledState();
-      tryAutoEnableCursorSync();
+      tryEnableCursorSync();
     },
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -501,16 +501,7 @@ export function toggleRemoteCursors(enabled: boolean): boolean {
   return ok;
 }
 
-export function ensureRemoteCursorSyncEnabled(): boolean {
-  if (!connectionManagerInstance) return false;
-  if (!connectionManagerInstance.isCursorsEnabled()) {
-    connectionManagerInstance.toggleRemoteCursors(true);
-  }
-  syncCursorEnabledState();
-  return connectionManagerInstance.isCursorsEnabled();
-}
-
-function tryAutoEnableCursorSync(): void {
+function tryEnableCursorSync(): void {
   if (!connectionManagerInstance) return;
   if (!connectionManagerInstance.isConnected()) return;
   if (!connectionManagerInstance.areCursorChannelsReady()) return;
