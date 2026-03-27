@@ -45,6 +45,7 @@ function createMockWebRTCService() {
     disconnect: vi.fn().mockResolvedValue(undefined),
     isConnected: vi.fn().mockReturnValue(false),
     onIceConnectionStateChange: vi.fn(),
+    onConnectionStateChange: vi.fn(),
     onRemoteStream: vi.fn(),
     // Cursor control methods
     updateRemoteCursor: vi.fn().mockReturnValue(true),
@@ -1574,12 +1575,14 @@ describe("ConnectionManager", () => {
       expect(mockCallbacks.onIceConnectionStateChange).toHaveBeenCalledWith("connected");
     });
 
-    it("should update phase to CONNECTING on checking state", async () => {
+    it("should NOT override OFFER_CREATED on ICE checking state", async () => {
       expect(savedIceCallback).toBeDefined();
+      // After startSharing, phase is OFFER_CREATED — checking must not regress it
       vi.clearAllMocks();
 
       savedIceCallback!("checking");
-      expect(mockCallbacks.onPhaseChange).toHaveBeenCalledWith(ConnectionPhase.CONNECTING);
+      expect(mockCallbacks.onPhaseChange).not.toHaveBeenCalled();
+      expect(connectionManager.getCurrentPhase()).toBe(ConnectionPhase.OFFER_CREATED);
     });
 
     it("should update phase to CONNECTED on connected state", async () => {
