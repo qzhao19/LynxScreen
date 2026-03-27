@@ -371,6 +371,10 @@ export class WebRTCService {
     this.connectionService.onIceConnectionStateChange(callback);
   }
 
+  public onConnectionStateChange(callback: (state: RTCPeerConnectionState) => void): void {
+    this.connectionService.onConnectionStateChange(callback);
+  }
+
   public isConnected(): boolean {
     return this.connectionService.isConnected();
   }
