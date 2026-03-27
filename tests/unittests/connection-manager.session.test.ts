@@ -1578,9 +1578,13 @@ describe("ConnectionManager", () => {
       expect(savedIceCallback).toBeDefined();
       vi.clearAllMocks();
 
+      // After startSharing, phase is OFFER_CREATED.
+      // The guard prevents "checking" from overriding OFFER_CREATED
+      // so the sharer can still receive the watcher's answer URL.
       savedIceCallback!("checking");
 
-      expect(mockCallbacks.onPhaseChange).toHaveBeenCalledWith(ConnectionPhase.CONNECTING);
+      // Phase should NOT change from OFFER_CREATED to CONNECTING
+      expect(mockCallbacks.onPhaseChange).not.toHaveBeenCalled();
     });
 
     it("should update phase to CONNECTED on connected state", async () => {
