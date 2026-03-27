@@ -87,15 +87,33 @@ export class ConnectionManager {
       this.callbacks.onIceConnectionStateChange?.(state);
       switch (state) {
         case "checking":
-          // Guard: don't override OFFER_CREATED phase.
-          // The sharer still needs the "Watcher Connection" input to paste the answer URL.
-          // acceptAnswerUrl() will explicitly transition to CONNECTING when the user submits.
-          if (this.currentPhase !== ConnectionPhase.OFFER_CREATED) {
+          // Don't override offerCreated / answerCreated to avoid 
+          if (this.currentPhase !== ConnectionPhase.OFFER_CREATED &&
+              this.currentPhase !== ConnectionPhase.ANSWER_CREATED) {
             this.setConnectionPhase(ConnectionPhase.CONNECTING);
           }
           break;
         case "connected":
         case "completed":
+          if (this.currentPhase !== ConnectionPhase.ANSWER_CREATED) {
+            this.setConnectionPhase(ConnectionPhase.CONNECTED);
+          }
+          break;
+        case "disconnected":
+        case "failed":
+        case "closed":
+          if (this.currentPhase === ConnectionPhase.CONNECTED ||
+              this.currentPhase === ConnectionPhase.CONNECTING) {
+            this.setConnectionPhase(ConnectionPhase.DISCONNECTED);
+          }
+          break;
+      }
+    });
+
+    this.webrtcService.onConnectionStateChange((state) => {
+      this.callbacks.onConnectionStateChange?.(state);
+      switch (state) {
+        case "connected":
           this.setConnectionPhase(ConnectionPhase.CONNECTED);
           break;
         case "disconnected":
@@ -172,7 +190,10 @@ export class ConnectionManager {
       // Encode a WebRTC SessionDescription to URL
       const offerUrl = await encodeConnectionUrl(PeerRole.SCREEN_SHARER, username, offer);
 
-      this.setConnectionPhase(ConnectionPhase.OFFER_CREATED);
+      if (this.currentPhase !== ConnectionPhase.CONNECTING &&
+          this.currentPhase !== ConnectionPhase.CONNECTED) {
+        this.setConnectionPhase(ConnectionPhase.OFFER_CREATED);
+      }
       this.callbacks.onUrlGenerated?.(offerUrl); 
 
       log.info("[ConnectionManager] Offer URL created");
@@ -301,8 +322,12 @@ export class ConnectionManager {
       // Encode answer URL
       const answerUrl = await encodeConnectionUrl(PeerRole.SCREEN_WATCHER, username, answer);
 
-
-      this.setConnectionPhase(ConnectionPhase.ANSWER_CREATED);
+      // Don't regress phase if ICE or DTLS already advanced it
+      // during the async createWatcherAnswer/encodeConnectionUrl calls.
+      if (this.currentPhase !== ConnectionPhase.CONNECTING &&
+          this.currentPhase !== ConnectionPhase.CONNECTED) {
+        this.setConnectionPhase(ConnectionPhase.ANSWER_CREATED);
+      }
       this.callbacks.onUrlGenerated?.(answerUrl);
 
       log.info("[ConnectionManager] Answer URL created");
