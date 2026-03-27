@@ -17,6 +17,7 @@
     connectionPhase,
     generatedUrl,
     isConnected,
+    iceConnectionState,
     isLoading,
     errorMessage,
     cursorChannelsReady
@@ -108,7 +109,10 @@
     phase === ConnectionPhase.IDLE || 
     phase === ConnectionPhase.DISCONNECTED
   );
-  $: showAnswerUrl = hasJoined && $generatedUrl && !$isConnected;
+  // Use both $isConnected (phase-based) and $iceConnectionState (raw ICE) as signals.
+  // This prevents the answer section from being stuck if the phase store update is missed.
+  $: iceConnected = $iceConnectionState === "connected" || $iceConnectionState === "completed";
+  $: showAnswerUrl = hasJoined && !!$generatedUrl && !$isConnected && !iceConnected;
   $: showVideo = hasJoined;
   $: showError = $errorMessage && phase === ConnectionPhase.ERROR;
 </script>
@@ -129,7 +133,7 @@
           🔗
         </IconCircle>
 
-        <h1 class="title">Join a Session</h1>
+        <h1 class="title">Join Session</h1>
         <p class="subtitle">
           Enter the sharer's session URL to join the screen share
         </p>
@@ -213,7 +217,7 @@
       </div>
     </Card>
 
-    {#if showVideo && $isConnected}
+    {#if showVideo && ($isConnected || iceConnected)}
       <Card>
         <div class="controls-bar">
           <div class="controls-left">
