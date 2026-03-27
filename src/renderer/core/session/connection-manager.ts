@@ -87,7 +87,12 @@ export class ConnectionManager {
       this.callbacks.onIceConnectionStateChange?.(state);
       switch (state) {
         case "checking":
-          this.setConnectionPhase(ConnectionPhase.CONNECTING);
+          // Guard: don't override OFFER_CREATED phase.
+          // The sharer still needs the "Watcher Connection" input to paste the answer URL.
+          // acceptAnswerUrl() will explicitly transition to CONNECTING when the user submits.
+          if (this.currentPhase !== ConnectionPhase.OFFER_CREATED) {
+            this.setConnectionPhase(ConnectionPhase.CONNECTING);
+          }
           break;
         case "connected":
         case "completed":
