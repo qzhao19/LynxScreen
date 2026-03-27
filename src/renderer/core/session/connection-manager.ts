@@ -172,13 +172,7 @@ export class ConnectionManager {
       // Encode a WebRTC SessionDescription to URL
       const offerUrl = await encodeConnectionUrl(PeerRole.SCREEN_SHARER, username, offer);
 
-      // Setup connetion step as offer-created
-      // this.setConnectionPhase(ConnectionPhase.OFFER_CREATED);
-      // Guard: don't regress phase if ICE already advanced during gathering
-      if (this.currentPhase !== ConnectionPhase.CONNECTING &&
-          this.currentPhase !== ConnectionPhase.CONNECTED) {
-        this.setConnectionPhase(ConnectionPhase.OFFER_CREATED);
-      }
+      this.setConnectionPhase(ConnectionPhase.OFFER_CREATED);
       this.callbacks.onUrlGenerated?.(offerUrl); 
 
       log.info("[ConnectionManager] Offer URL created");
@@ -307,12 +301,8 @@ export class ConnectionManager {
       // Encode answer URL
       const answerUrl = await encodeConnectionUrl(PeerRole.SCREEN_WATCHER, username, answer);
 
-      // On fast networks, ICE may have already reached CONNECTING or CONNECTED
-      // during waitForIceGathering(). Don't regress the phase.
-      if (this.currentPhase !== ConnectionPhase.CONNECTING &&
-          this.currentPhase !== ConnectionPhase.CONNECTED) {
-        this.setConnectionPhase(ConnectionPhase.ANSWER_CREATED);
-      }
+
+      this.setConnectionPhase(ConnectionPhase.ANSWER_CREATED);
       this.callbacks.onUrlGenerated?.(answerUrl);
 
       log.info("[ConnectionManager] Answer URL created");
