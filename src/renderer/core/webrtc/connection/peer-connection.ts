@@ -14,6 +14,7 @@ export class PeerConnectionService {
   private dataChannelService: DataChannelService;
 
   private onIceConnectionStateChangeCallback?: (state: RTCIceConnectionState) => void;
+  private onConnectionStateChangeCallback?: (state: RTCPeerConnectionState) => void;
   private onRemoteStreamCallback?: (stream: MediaStream) => void;
 
   // Track pending ICE gathering so we can abort on cleanup
@@ -70,10 +71,12 @@ export class PeerConnectionService {
       }
     };
 
+    // 
     this.pc.onconnectionstatechange = (): void => {
       if (!this.pc) return;
       const state = this.pc.connectionState;
       log.info(`Connection state changed: ${state}`);
+      this.onConnectionStateChangeCallback?.(state);
     };
 
     // ICE collection status change event
@@ -284,6 +287,10 @@ export class PeerConnectionService {
     this.onIceConnectionStateChangeCallback = callback;
   }
 
+  public onConnectionStateChange(callback: (state: RTCPeerConnectionState) => void): void {
+    this.onConnectionStateChangeCallback = callback;
+  }
+
   public onRemoteStream(callback: (stream: MediaStream) => void): void {
     this.onRemoteStreamCallback = callback;
   }
@@ -338,6 +345,7 @@ export class PeerConnectionService {
     this.close();
     this.dataChannelService.cleanup();
     this.onIceConnectionStateChangeCallback = undefined;
+    this.onConnectionStateChangeCallback = undefined;
     this.onRemoteStreamCallback = undefined;
 
     log.info("Connection service cleaned up");
