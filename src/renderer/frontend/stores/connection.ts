@@ -47,6 +47,9 @@ export const cursorSyncEnabled = writable<boolean>(false);
 // ICE connection state
 export const iceConnectionState = writable<RTCIceConnectionState | null>(null);
 
+// Connection state
+export const connectionState = writable<RTCPeerConnectionState | null>(null);
+
 // ============== Derived Stores ==============
 
 export const isConnected = derived(connectionPhase, $phase => $phase === ConnectionPhase.CONNECTED);
@@ -141,6 +144,10 @@ function setupConnectionCallbacks(): void {
 
     onIceConnectionStateChange: (state: RTCIceConnectionState) => {
       iceConnectionState.set(state);
+    },
+
+    onConnectionStateChange: (state: RTCPeerConnectionState) => {
+      connectionState.set(state);
     },
 
     onCursorUpdate: (data: RemoteCursorState) => {
@@ -285,6 +292,7 @@ function resetConnectionStores(options: { clearError?: boolean } = {}): void {
   generatedUrl.set("");
   remoteStream.set(null);
   iceConnectionState.set(null);
+  connectionState.set(null);
   cursorPositionsChannelReady.set(false);
   cursorPingChannelReady.set(false);
   cursorChannelsReady.set(false);
