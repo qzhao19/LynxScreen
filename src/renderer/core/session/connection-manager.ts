@@ -172,7 +172,7 @@ export class ConnectionManager {
       // Encode a WebRTC SessionDescription to URL
       const offerUrl = await encodeConnectionUrl(PeerRole.SCREEN_SHARER, username, offer);
 
-      //Setup connetion step as offer-created
+      // Setup connetion step as offer-created
       // this.setConnectionPhase(ConnectionPhase.OFFER_CREATED);
       // Guard: don't regress phase if ICE already advanced during gathering
       if (this.currentPhase !== ConnectionPhase.CONNECTING &&

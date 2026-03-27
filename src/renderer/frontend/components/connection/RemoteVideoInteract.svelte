@@ -3,7 +3,6 @@
   import { 
     remoteStream, 
     isConnected,
-    iceConnectionState,
     connectionPhase,
     updateRemoteCursor,
     pingRemoteCursor,
@@ -134,8 +133,6 @@
   });
   
   $: overlayText = phaseDisplayText[$connectionPhase] || "Connecting...";
-  $: iceConnected = $iceConnectionState === "connected" || $iceConnectionState === "completed";
-  $: effectivelyConnected = $isConnected || iceConnected;
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -152,7 +149,7 @@
     class="remote-video"
   ></video>
 
-  {#if showOverlay && (!effectivelyConnected || !$remoteStream)}
+  {#if showOverlay && (!$isConnected || !$remoteStream)}
     <div class="video-overlay">
       <span class="spinner"></span>
       <p class="overlay-text">{overlayText}</p>

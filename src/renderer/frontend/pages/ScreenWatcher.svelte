@@ -17,7 +17,6 @@
     connectionPhase,
     generatedUrl,
     isConnected,
-    iceConnectionState,
     isLoading,
     errorMessage,
     cursorChannelsReady
@@ -109,10 +108,7 @@
     phase === ConnectionPhase.IDLE || 
     phase === ConnectionPhase.DISCONNECTED
   );
-  // Use both $isConnected (phase-based) and $iceConnectionState (raw ICE) as signals.
-  // This prevents the answer section from being stuck if the phase store update is missed.
-  $: iceConnected = $iceConnectionState === "connected" || $iceConnectionState === "completed";
-  $: showAnswerUrl = hasJoined && !!$generatedUrl && !$isConnected && !iceConnected;
+  $: showAnswerUrl = hasJoined && !!$generatedUrl && !$isConnected;
   $: showVideo = hasJoined;
   $: showError = $errorMessage && phase === ConnectionPhase.ERROR;
 </script>
@@ -217,7 +213,7 @@
       </div>
     </Card>
 
-    {#if showVideo && ($isConnected || iceConnected)}
+    {#if showVideo && $isConnected}
       <Card>
         <div class="controls-bar">
           <div class="controls-left">

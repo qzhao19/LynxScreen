@@ -74,20 +74,6 @@ export class PeerConnectionService {
       if (!this.pc) return;
       const state = this.pc.connectionState;
       log.info(`Connection state changed: ${state}`);
-
-      // Use connectionState as a redundant signal for phase transitions.
-      // In Chromium/Electron, iceconnectionstatechange can sometimes be missed
-      // on fast networks. connectionState (DTLS+ICE aggregate) is more reliable.
-      const connectionToIceMap: Partial<Record<RTCPeerConnectionState, RTCIceConnectionState>> = {
-        "connected": "connected",
-        "disconnected": "disconnected",
-        "failed": "failed",
-        "closed": "closed"
-      };
-      const iceEquivalent = connectionToIceMap[state];
-      if (iceEquivalent) {
-        this.onIceConnectionStateChangeCallback?.(iceEquivalent);
-      }
     };
 
     // ICE collection status change event
