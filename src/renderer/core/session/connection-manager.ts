@@ -95,15 +95,16 @@ export class ConnectionManager {
           break;
         case "connected":
         case "completed":
-          if (this.currentPhase !== ConnectionPhase.ANSWER_CREATED) {
-            this.setConnectionPhase(ConnectionPhase.CONNECTED);
-          }
+          // ICE "connected" is a STUN-level signal only. It can fire before the remote
+          // peer has accepted the SDP answer (DTLS not yet complete). Do not advance to
+          // CONNECTED here — the connectionState callback (DTLS) is the authoritative signal.
           break;
         case "disconnected":
         case "failed":
         case "closed":
           if (this.currentPhase === ConnectionPhase.CONNECTED ||
-              this.currentPhase === ConnectionPhase.CONNECTING) {
+            this.currentPhase === ConnectionPhase.CONNECTING ||
+            this.currentPhase === ConnectionPhase.ANSWER_CREATED) {
             this.setConnectionPhase(ConnectionPhase.DISCONNECTED);
           }
           break;
