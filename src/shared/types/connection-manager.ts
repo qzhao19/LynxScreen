@@ -21,7 +21,7 @@ export interface ConnectionManagerCallbacks {
   onPhaseChange?: (step: ConnectionPhase) => void;
   onUrlGenerated?: (url: string) => void;
   onIceConnectionStateChange?: (state: RTCIceConnectionState) => void;
-  onConnectionStateChange?: (state: RTCPeerConnectionState) => void;  // ADD THIS
+  onConnectionStateChange?: (state: RTCPeerConnectionState) => void; 
   onError?: (error: Error) => void;
   onRemoteStream?: (stream: MediaStream) => void; 
   onCursorUpdate?: (data: RemoteCursorState) => void;
