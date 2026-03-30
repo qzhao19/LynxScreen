@@ -21,6 +21,7 @@ export class WebRTCService {
   private config: WebRTCServiceConfig;
   private audioElement: HTMLAudioElement | null = null;
   private isInitialized: boolean = false;
+  private combinedRemoteStream: MediaStream | null = null;
 
   // Allow external consumers to layer their own stream callback on top
   private externalRemoteStreamCallback?: (stream: MediaStream) => void;
@@ -128,18 +129,31 @@ export class WebRTCService {
 
     // Handle incoming remote media stream
     this.connectionService.onRemoteStream((stream: MediaStream) => {
-      // Set video source for watcher
+      // Merge all incoming tracks into one stable stream.
+      // Without this, later ontrack events can overwrite srcObject
+      // and drop previously received audio/video tracks.
+      if (!this.combinedRemoteStream) {
+        this.combinedRemoteStream = new MediaStream();
+      }
+
+      for (const track of stream.getTracks()) {
+        if (!this.combinedRemoteStream.getTrackById(track.id)) {
+          this.combinedRemoteStream.addTrack(track);
+        }
+      }
+
+      // Watcher: video element plays both remote video + remote audio
       if (this.isWatcherConfig(this.config)) {
-        this.config.remoteVideo.srcObject = stream;
+        this.config.remoteVideo.srcObject = this.combinedRemoteStream;
       }
 
-      // Set audio source
+      // Sharer: play remote audio via hidden audio element
       if (this.audioElement) {
-        this.audioElement.srcObject = stream;
+        this.audioElement.srcObject = this.combinedRemoteStream;
       }
 
-      // Also forward to external callback if registered
-      this.externalRemoteStreamCallback?.(stream);
+      // Forward combined stream to outer layer
+      this.externalRemoteStreamCallback?.(this.combinedRemoteStream);
     });
   }
 
@@ -157,12 +171,14 @@ export class WebRTCService {
   }
 
   private async acquireAndAddAudioTrack(): Promise<boolean> {
-    const audioStream = this.mediaService.getAudioStream();
+    // Must actively request user audio here.
+    const audioStream = await this.mediaService.getUserAudio();
     if (!audioStream) {
       log.warn("[WebRTCService] Failed to acquire audio stream");
       return false;
     }
-    // Add all audio tracks to the peer connection so remote peer receives audio.
+
+    // Add all audio tracks to peer connection so remote peer can hear us.
     for (const track of audioStream.getAudioTracks()) {
       track.enabled = true;
       this.connectionService.addTrack(track, audioStream);
@@ -182,8 +198,10 @@ export class WebRTCService {
       // Initialize RTCPeerConnection
       this.connectionService.initialize();
 
-      // Create audio element for remote audio playback
-      if (this.config.userConfig.isMicrophoneEnabledOnConnect) {
+      // Create playback element for remote audio.
+      // Sharer needs this regardless of local mic-on setting.
+      // Watcher does not need it because remoteVideo already plays audio.
+      if (this.isSharerConfig(this.config)) {
         this.audioElement = this.createAudioElement();
       }
       
@@ -321,14 +339,6 @@ export class WebRTCService {
     return this.dataChannelService.pingRemoteCursor(cursorId);
   }
 
-  public toggleRemoteCursors(enabled: boolean): boolean {
-    return this.dataChannelService.toggleCursors(enabled);
-  }
-
-  public isCursorsEnabled(): boolean {
-    return this.dataChannelService.isCursorsEnabled();
-  }
-
   public isCursorPositionsChannelReady(): boolean {
     return this.dataChannelService.isCursorPositionsChannelReady();
   }
@@ -337,8 +347,8 @@ export class WebRTCService {
     return this.dataChannelService.isCursorPingChannelReady();
   }
 
-  public areDataChannelsReady(): boolean {
-    return this.dataChannelService.areAllChannelsReady();
+  public areCursorChannelsReady(): boolean {
+    return this.dataChannelService.areCursorChannelsReady();
   }
 
   public onCursorUpdate(callback: (data: RemoteCursorState) => void): void {
@@ -398,6 +408,7 @@ export class WebRTCService {
     this.mediaService.cleanup();
     this.connectionService.cleanup();
     this.removeAudioElement();
+    this.combinedRemoteStream = null;
 
     if (this.isWatcherConfig(this.config)) {
       this.config.remoteVideo.srcObject = null;
