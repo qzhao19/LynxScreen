@@ -8,6 +8,9 @@ import log from "electron-log/renderer";
 export class MediaStreamService {
   private audioStream: MediaStream | null = null;
   private displayStream: MediaStream | null = null;
+  // Sequence counters
+  private audioAcquireSeq: number = 0;
+  private displayAcquireSeq: number = 0;
   // Callback binding to the display stream
   private displayEndEventListener?: () => void;
   private onDisplayEndCallback?: () => void;
@@ -15,7 +18,7 @@ export class MediaStreamService {
   private isHandlingDisplayEnd: boolean = false;
 
   /**
-   * Stop any existing audio stram
+   * Stop all tracks on the given stream and remove event listeners.
    */
   private stopTracks(stream: MediaStream | null): void {
     if (!stream) return;
@@ -35,10 +38,9 @@ export class MediaStreamService {
       track.onmute = null;
       track.onunmute = null;
 
-      // Stop all track
       track.stop();
 
-      // Remove from the stream to avoid the rest of ref
+      // Remove from the stream to release the reference
       stream.removeTrack(track);
     });
   }
@@ -66,21 +68,35 @@ export class MediaStreamService {
 
   /**
    * Requests user permission to access the microphone and retrieves the audio stream.
+   * Concurrent calls are safe: only the latest result is retained; stale streams are stopped.
    */
   public async getUserAudio(): Promise<MediaStream | null> {
+    const acquireSeq = ++this.audioAcquireSeq;
+
     try {
-      // Stops any existing audio stream before acquiring a new one
+      // Stop any existing audio stream before acquiring a new one
       this.stopTracks(this.audioStream);
       this.audioStream = null;
 
-      this.audioStream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: false,
       });
 
+      // A newer request superseded this one while it was pending — drop this stale stream.
+      if (acquireSeq !== this.audioAcquireSeq) {
+        this.stopTracks(stream);
+        return this.audioStream;
+      }
+
+      this.audioStream = stream;
       log.info("Audio stream acquired successfully");
       return this.audioStream;
     } catch (error) {
+      // Ignore failure from a superseded request.
+      if (acquireSeq !== this.audioAcquireSeq) {
+        return this.audioStream;
+      }
       log.warn("Failed to get user audio:", error);
       this.audioStream = null;
       return null;
@@ -89,18 +105,29 @@ export class MediaStreamService {
 
   /**
    * Requests user permission to capture the screen/display.
+   * Concurrent calls are safe: only the latest result is retained; stale streams are stopped.
    */
   public async getDisplayMedia(): Promise<MediaStream | null> {
+    const acquireSeq = ++this.displayAcquireSeq;
+
     try {
-      // Clean up any existing display stream before acquiring new one
+      // Clean up any existing display stream before acquiring a new one
       this.stopTracks(this.displayStream);
       this.displayStream = null;
       this.isHandlingDisplayEnd = false;
 
-      this.displayStream = await navigator.mediaDevices.getDisplayMedia({
+      const stream = await navigator.mediaDevices.getDisplayMedia({
         audio: false,
         video: true,
       });
+
+      // A newer request superseded this one while it was pending — drop this stale stream.
+      if (acquireSeq !== this.displayAcquireSeq) {
+        this.stopTracks(stream);
+        return this.displayStream;
+      }
+
+      this.displayStream = stream;
 
       // Bind the end handler via arrow function to preserve `this` context
       this.displayEndEventListener = () => this.handleDisplayEnd();
@@ -115,6 +142,10 @@ export class MediaStreamService {
 
       return this.displayStream;
     } catch (error) {
+      // Ignore failure from a superseded request.
+      if (acquireSeq !== this.displayAcquireSeq) {
+        return this.displayStream;
+      }
       log.error("Failed to get display media:", error);
       this.displayStream = null;
       return null;
@@ -143,10 +174,14 @@ export class MediaStreamService {
   }
 
   /**
-   * Checks if audio input is available.
+   * Returns true if an active mic stream with at least one live audio track exists.
    */
   public hasAudioInput(): boolean {
-    return this.audioStream !== null;
+    return !!(
+      this.audioStream &&
+      this.audioStream.active &&
+      this.audioStream.getAudioTracks().some(track => track.readyState === "live")
+    );
   }
 
   /**
@@ -161,39 +196,47 @@ export class MediaStreamService {
   }
 
   /**
-   * Enables or disables all audio tracks.
+   * Enables or disables all live audio tracks.
    */
   public toggleAudioTrack(enabled: boolean): void {
     if (!this.audioStream) return;
     this.audioStream.getAudioTracks().forEach(track => {
-      track.enabled = enabled;
+      if (track.readyState === "live") {
+        track.enabled = enabled;
+      }
     });
   }
 
   /**
-   * Enables or disables all video tracks in the display stream.
+   * Enables or disables all live video tracks in the display stream.
    */
   public toggleVideoTrack(enabled: boolean): void {
     if (!this.displayStream) return;
     this.displayStream.getVideoTracks().forEach(track => {
-      track.enabled = enabled;
+      if (track.readyState === "live") {
+        track.enabled = enabled;
+      }
     });
   }
 
   /**
-   * Checks if audio tracks are currently active.
+   * Returns true if at least one live audio track is enabled.
    */
   public isAudioTrackActive(): boolean {
     if (!this.audioStream) return false;
-    return this.audioStream.getAudioTracks().some(track => track.enabled);
+    return this.audioStream.getAudioTracks().some(
+      track => track.readyState === "live" && track.enabled
+    );
   }
 
   /**
-   * Checks if any video track is currently enabled.
+   * Returns true if at least one live video track is enabled.
    */
   public isDisplayStreamActive(): boolean {
     if (!this.displayStream) return false;
-    return this.displayStream.getVideoTracks().some(track => track.enabled);
+    return this.displayStream.getVideoTracks().some(
+      track => track.readyState === "live" && track.enabled
+    );
   }
 
   /**
@@ -207,9 +250,12 @@ export class MediaStreamService {
   }
 
   /**
-   * Cleans up all resources by stopping all tracks.
+   * Cleans up all resources by stopping all tracks and clearing callbacks.
    */
   public cleanup(): void {
+    // Invalidate any in-flight acquire calls so their results are discarded.
+    this.audioAcquireSeq += 1;
+    this.displayAcquireSeq += 1;
     this.stopAllTracks();
     this.onDisplayEndCallback = undefined;
     this.displayEndEventListener = undefined;
