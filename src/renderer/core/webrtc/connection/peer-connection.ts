@@ -4,7 +4,7 @@ import { DataChannelService } from "../data/index";
 
 /**
  * Service for managing WebRTC peer connection lifecycle.
- * 
+ *
  * Handles RTCPeerConnection creation, offer/answer exchange, track management,
  * and connection state monitoring for peer-to-peer communication.
  */
@@ -34,7 +34,7 @@ export class PeerConnectionService {
   private setupPeerConnectionHandlers(): void {
     if (!this.pc) return;
 
-    // Data stream events, when the remote peer creates and sends a data channel 
+    // Data stream events, when the remote peer creates and sends a data channel
     this.pc.ondatachannel = (event: RTCDataChannelEvent): void => {
       log.info(`Incoming data channel: ${event.channel.label}`);
       this.dataChannelService.handleIncomingChannel(event.channel);
@@ -46,7 +46,6 @@ export class PeerConnectionService {
       if (event.streams && event.streams[0]) {
         this.onRemoteStreamCallback?.(event.streams[0]);
       } else {
-        // Handle track without associated stream (possible during renegotiation)
         log.warn("Received track without associated stream, wrapping in new MediaStream");
         const stream = new MediaStream([event.track]);
         this.onRemoteStreamCallback?.(stream);
@@ -71,7 +70,7 @@ export class PeerConnectionService {
       }
     };
 
-    // 
+    // Connection state change events
     this.pc.onconnectionstatechange = (): void => {
       if (!this.pc) return;
       const state = this.pc.connectionState;
@@ -79,11 +78,20 @@ export class PeerConnectionService {
       this.onConnectionStateChangeCallback?.(state);
     };
 
-    // ICE collection status change event
+    // ICE gathering status change event
     this.pc.onicegatheringstatechange = (): void => {
       if (this.pc) {
         log.debug(`ICE gathering state: ${this.pc.iceGatheringState}`);
       }
+    };
+
+    // Renegotiation is not supported in current architecture (static URL signaling).
+    // Tracks added after connection establishment will NOT reach the remote peer.
+    this.pc.onnegotiationneeded = (): void => {
+      log.warn(
+        "onnegotiationneeded fired but renegotiation is not supported (static URL signaling). " +
+          "Tracks added after initial offer/answer will not be transmitted to the remote peer."
+      );
     };
   }
 
@@ -106,51 +114,51 @@ export class PeerConnectionService {
       this.iceGatheringAbortController = controller;
       const { signal } = controller;
 
-      // Unify the processing of resolve/reject. 
-      // Ensure it executes only once (via settled), then call cleanup() to release resources.
-      const settle = (fn: typeof resolve | typeof reject, arg?: unknown): void => {
+      const resolveOnce = (): void => {
         if (settled) return;
         settled = true;
         cleanup();
-        if (fn === reject) {
-          (reject as (reason?: unknown) => void)(arg);
-        } else {
-          resolve();
-        }
+        resolve();
+      };
+
+      const rejectOnce = (error: Error): void => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
       };
 
       // Listen icegatheringstatechange event
       const checkComplete = (): void => {
         if (pc.iceGatheringState === "complete") {
           log.info(`ICE gathering complete with ${candidateCount} candidates`);
-          settle(resolve);
+          resolveOnce();
         }
       };
 
-      // Listen icecandidate event, when a candidate is available, add +1. 
-      // When no candidate is available, it indicates completion. 
+      // Listen icecandidate event
       const handleCandidate = (event: RTCPeerConnectionIceEvent): void => {
         if (event.candidate) {
           candidateCount += 1;
         } else {
           log.info(`ICE gathering done (null candidate) with ${candidateCount} candidates`);
-          settle(resolve);
+          resolveOnce();
         }
       };
 
       // Listen AbortController event
       const handleAbort = (): void => {
         log.warn("ICE gathering aborted externally");
-        settle(resolve);
+        resolveOnce();
       };
 
       const timeoutId = setTimeout(() => {
         if (candidateCount === 0) {
           log.error("ICE gathering timed out without candidates");
-          settle(reject, new Error("ICE gathering timed out without sufficient candidates"));
+          rejectOnce(new Error("ICE gathering timed out without sufficient candidates"));
         } else {
           log.warn(`ICE gathering timed out after ${candidateCount} candidates, proceeding`);
-          settle(resolve);
+          resolveOnce();
         }
       }, timeout);
 
@@ -264,16 +272,6 @@ export class PeerConnectionService {
   }
 
   /**
-   * Removes a media track from the peer connection.
-   */
-  public removeTrack(sender: RTCRtpSender): void {
-    this.ensureConnection();
-
-    log.info("Removing track from peer connection");
-    this.pc!.removeTrack(sender);
-  }
-
-  /**
    * Creates data channels for cursor synchronization.
    */
   public createDataChannels(): void {
@@ -307,21 +305,11 @@ export class PeerConnectionService {
     return this.pc?.iceConnectionState ?? null;
   }
 
-  public getPeerConnection(): RTCPeerConnection | null {
-    return this.pc;
-  }
-
   /**
    * Closes the peer connection and cleans up handlers.
    */
   public close(): void {
-    const controller = this.iceGatheringAbortController;
-    if (controller) {
-      controller.abort();
-      if (this.iceGatheringAbortController === controller) {
-        this.iceGatheringAbortController = null;
-      }
-    }
+    this.iceGatheringAbortController?.abort();
 
     if (this.pc) {
       log.info("Closing peer connection");
@@ -332,6 +320,7 @@ export class PeerConnectionService {
       this.pc.oniceconnectionstatechange = null;
       this.pc.onconnectionstatechange = null;
       this.pc.onicegatheringstatechange = null;
+      this.pc.onnegotiationneeded = null;
 
       this.pc.close();
       this.pc = null;
