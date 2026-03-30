@@ -352,12 +352,16 @@ export class ConnectionManager {
 
   /**
    * Checks if cursor ping channel is ready
-   * 
-   * OPTIONAL FEATURE: Related to cursor keep-alive mechanism.
-   * Currently not used in frontend - kept for future enhancements.
    */
   public isCursorPingChannelReady(): boolean {
     return this.webrtcService?.isCursorPingChannelReady() ?? false;
+  }
+
+  /**
+   * Checks if data channels are ready for cursor sync
+   */
+  public areCursorChannelsReady(): boolean {
+    return this.webrtcService?.areCursorChannelsReady() ?? false;
   }
 
   /**
@@ -380,31 +384,6 @@ export class ConnectionManager {
       return false;
     }
     return this.webrtcService.updateRemoteCursor(cursorData);
-  }
-
-  /**
-   * Toggles cursor synchronization
-   */
-  public toggleRemoteCursors(enabled: boolean): boolean {
-    if (!this.webrtcService) {
-      log.warn("[ConnectionManager] Cannot toggle cursors: not connected");
-      return false;
-    }
-    return this.webrtcService.toggleRemoteCursors(enabled);
-  }
-
-  /**
-   * Checks if cursor synchronization is enabled
-   */
-  public isCursorsEnabled(): boolean {
-    return this.webrtcService?.isCursorsEnabled() ?? false;
-  }
-
-  /**
-   * Checks if data channels are ready for cursor sync
-   */
-  public areCursorChannelsReady(): boolean {
-    return this.webrtcService?.areDataChannelsReady() ?? false;
   }
 
   // ============== MEDIA CONTROL ==============
