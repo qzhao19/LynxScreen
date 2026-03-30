@@ -51,12 +51,11 @@ function createMockWebRTCService() {
     updateRemoteCursor: vi.fn().mockReturnValue(true),
     onCursorPing: vi.fn(),
     onCursorUpdate: vi.fn(),
-    toggleRemoteCursors: vi.fn().mockReturnValue(true),
-    isCursorsEnabled: vi.fn().mockReturnValue(false),
-    areDataChannelsReady: vi.fn().mockReturnValue(false),
+    pingRemoteCursor: vi.fn().mockReturnValue(true),
     // New cursor channel methods
     isCursorPositionsChannelReady: vi.fn().mockReturnValue(false),
     isCursorPingChannelReady: vi.fn().mockReturnValue(false),
+    areCursorChannelsReady: vi.fn().mockReturnValue(false),
     onChannelOpen: vi.fn(),
     onChannelClose: vi.fn(),
     // Media control methods
@@ -132,9 +131,6 @@ describe("ConnectionManager", () => {
       ...createMockWebRTCService(),
       updateRemoteCursor: vi.fn().mockReturnValue(true),
       onCursorUpdate: vi.fn(),
-      toggleRemoteCursors: vi.fn().mockReturnValue(true),
-      isCursorsEnabled: vi.fn().mockReturnValue(false),
-      areDataChannelsReady: vi.fn().mockReturnValue(false)
     };
     mockWebRTCServiceInstance.createSharerOffer.mockResolvedValue(mockOffer);
     mockWebRTCServiceInstance.createWatcherAnswer.mockResolvedValue(mockAnswer);
@@ -625,61 +621,6 @@ describe("ConnectionManager", () => {
   //   });
   // });
 
-  describe("toggleRemoteCursors", () => {
-    beforeEach(setupCursorMocks);
-
-    it("should return false when not connected", () => {
-      const result = connectionManager.toggleRemoteCursors(true);
-      expect(result).toBe(false);
-    });
-
-    it("should enable cursors through WebRTC service", async () => {
-      await connectionManager.startSharing("TestSharer");
-      const result = connectionManager.toggleRemoteCursors(true);
-      expect(result).toBe(true);
-      expect(mockWebRTCServiceInstance.toggleRemoteCursors).toHaveBeenCalledWith(true);
-    });
-
-    it("should disable cursors through WebRTC service", async () => {
-      mockWebRTCServiceInstance.toggleRemoteCursors.mockReturnValue(false);
-      await connectionManager.startSharing("TestSharer");
-      const result = connectionManager.toggleRemoteCursors(false);
-      expect(result).toBe(false);
-      expect(mockWebRTCServiceInstance.toggleRemoteCursors).toHaveBeenCalledWith(false);
-    });
-
-    it("should return WebRTC service result when channels not ready", async () => {
-      mockWebRTCServiceInstance.toggleRemoteCursors.mockReturnValue(false);
-      await connectionManager.startSharing("TestSharer");
-      const result = connectionManager.toggleRemoteCursors(true);
-      expect(result).toBe(false);
-    });
-  });
-
-  describe("isCursorsEnabled", () => {
-    beforeEach(setupCursorMocks);
-
-    it("should return false when not connected", () => {
-      const result = connectionManager.isCursorsEnabled();
-      expect(result).toBe(false);
-    });
-
-    it("should return WebRTC service cursor state when connected", async () => {
-      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(true);
-      await connectionManager.startSharing("TestSharer");
-      const result = connectionManager.isCursorsEnabled();
-      expect(result).toBe(true);
-      expect(mockWebRTCServiceInstance.isCursorsEnabled).toHaveBeenCalled();
-    });
-
-    it("should return false when cursors are disabled", async () => {
-      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(false);
-      await connectionManager.startSharing("TestSharer");
-      const result = connectionManager.isCursorsEnabled();
-      expect(result).toBe(false);
-    });
-  });
-
   describe("areCursorChannelsReady", () => {
     beforeEach(setupCursorMocks);
 
@@ -689,15 +630,15 @@ describe("ConnectionManager", () => {
     });
 
     it("should return true when data channels are ready", async () => {
-      mockWebRTCServiceInstance.areDataChannelsReady.mockReturnValue(true);
+      mockWebRTCServiceInstance.areCursorChannelsReady.mockReturnValue(true);
       await connectionManager.startSharing("TestSharer");
       const result = connectionManager.areCursorChannelsReady();
       expect(result).toBe(true);
-      expect(mockWebRTCServiceInstance.areDataChannelsReady).toHaveBeenCalled();
+      expect(mockWebRTCServiceInstance.areCursorChannelsReady).toHaveBeenCalled();
     });
 
     it("should return false when data channels are not ready", async () => {
-      mockWebRTCServiceInstance.areDataChannelsReady.mockReturnValue(false);
+      mockWebRTCServiceInstance.areCursorChannelsReady.mockReturnValue(false);
       await connectionManager.startSharing("TestSharer");
       const result = connectionManager.areCursorChannelsReady();
       expect(result).toBe(false);
@@ -708,32 +649,22 @@ describe("ConnectionManager", () => {
     beforeEach(setupCursorMocks);
 
     it("should support full cursor workflow for sharer", async () => {
-      mockWebRTCServiceInstance.areDataChannelsReady.mockReturnValue(true);
-      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(false);
+      mockWebRTCServiceInstance.areCursorChannelsReady.mockReturnValue(true);
 
       await connectionManager.startSharing("TestSharer");
 
       expect(connectionManager.areCursorChannelsReady()).toBe(true);
-
-      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(true);
-      connectionManager.toggleRemoteCursors(true);
-      expect(connectionManager.isCursorsEnabled()).toBe(true);
 
       // onCursorUpdate is registered internally via setupServiceCallbacks
       expect(mockWebRTCServiceInstance.onCursorUpdate).toHaveBeenCalled();
     });
 
     it("should support full cursor workflow for watcher", async () => {
-      mockWebRTCServiceInstance.areDataChannelsReady.mockReturnValue(true);
-      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(false);
+      mockWebRTCServiceInstance.areCursorChannelsReady.mockReturnValue(true);
 
       await connectionManager.joinSession("TestWatcher", mockOfferUrl, mockVideoElement);
 
       expect(connectionManager.areCursorChannelsReady()).toBe(true);
-
-      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(true);
-      connectionManager.toggleRemoteCursors(true);
-      expect(connectionManager.isCursorsEnabled()).toBe(true);
 
       const result = connectionManager.updateRemoteCursor(mockCursorData);
       expect(result).toBe(true);
@@ -741,27 +672,24 @@ describe("ConnectionManager", () => {
     });
 
     it("should reset cursor state after disconnect", async () => {
-      mockWebRTCServiceInstance.areDataChannelsReady.mockReturnValue(true);
-      mockWebRTCServiceInstance.isCursorsEnabled.mockReturnValue(true);
+      mockWebRTCServiceInstance.areCursorChannelsReady.mockReturnValue(true);
 
       await connectionManager.startSharing("TestSharer");
 
-      expect(connectionManager.isCursorsEnabled()).toBe(true);
+      expect(connectionManager.areCursorChannelsReady()).toBe(true);
 
       await connectionManager.disconnect();
 
-      expect(connectionManager.isCursorsEnabled()).toBe(false);
       expect(connectionManager.areCursorChannelsReady()).toBe(false);
       expect(connectionManager.updateRemoteCursor(mockCursorData)).toBe(false);
     });
 
     it("should reset cursor state after reset", async () => {
-      mockWebRTCServiceInstance.areDataChannelsReady.mockReturnValue(true);
+      mockWebRTCServiceInstance.areCursorChannelsReady.mockReturnValue(true);
 
       await connectionManager.startSharing("TestSharer");
       await connectionManager.reset();
 
-      expect(connectionManager.isCursorsEnabled()).toBe(false);
       expect(connectionManager.areCursorChannelsReady()).toBe(false);
     });
   });
@@ -1556,6 +1484,7 @@ describe("ConnectionManager", () => {
 
   describe("connection state callbacks", () => {
     let savedIceCallback: ((state: RTCIceConnectionState) => void) | undefined;
+    let savedConnectionCallback: ((state: RTCPeerConnectionState) => void) | undefined;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let savedStreamCallback: ((stream: MediaStream) => void) | undefined;
 
@@ -1564,6 +1493,7 @@ describe("ConnectionManager", () => {
       await connectionManager.startSharing("TestSharer");
       
       savedIceCallback = mockWebRTCServiceInstance.onIceConnectionStateChange.mock.calls[0]?.[0];
+      savedConnectionCallback = mockWebRTCServiceInstance.onConnectionStateChange.mock.calls[0]?.[0];
       savedStreamCallback = mockWebRTCServiceInstance.onRemoteStream.mock.calls[0]?.[0];
     });
 
@@ -1586,33 +1516,34 @@ describe("ConnectionManager", () => {
     });
 
     it("should update phase to CONNECTED on connected state", async () => {
-      expect(savedIceCallback).toBeDefined();
+      expect(savedConnectionCallback).toBeDefined();
       vi.clearAllMocks();
 
-      savedIceCallback!("connected");
+      savedConnectionCallback!("connected");
 
       expect(mockCallbacks.onPhaseChange).toHaveBeenCalledWith(ConnectionPhase.CONNECTED);
     });
 
    it("should update phase to CONNECTED on completed state", async () => {
-      expect(savedIceCallback).toBeDefined();
+      // connectionState does not have a "completed" value;
+      // the authoritative connected signal is connectionState === "connected".
+      expect(savedConnectionCallback).toBeDefined();
       vi.clearAllMocks();
 
-      savedIceCallback!("completed");
+      savedConnectionCallback!("connected");
 
       expect(mockCallbacks.onPhaseChange).toHaveBeenCalledWith(ConnectionPhase.CONNECTED);
     });
 
     it("should update phase to DISCONNECTED on failed state", async () => {
-      await connectionManager.startSharing("TestSharer");
+      expect(savedConnectionCallback).toBeDefined();
 
-      // Set phase to connected first
-      const iceCallback = mockWebRTCServiceInstance.onIceConnectionStateChange.mock.calls[0][0];
-      iceCallback("connected");
+      // Set phase to connected first via DTLS connection state
+      savedConnectionCallback!("connected");
       vi.clearAllMocks();
 
       // Then simulate failure
-      iceCallback("failed");
+      savedConnectionCallback!("failed");
 
       expect(mockCallbacks.onPhaseChange).toHaveBeenCalledWith(ConnectionPhase.DISCONNECTED);
     });
