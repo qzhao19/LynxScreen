@@ -108,6 +108,7 @@ function setupConnectionCallbacks(): void {
       connectionPhase.set(phase);
 
       if (phase === ConnectionPhase.CONNECTED) {
+        preventAppSuspension();
         updateMediaStates();
         syncCursorChannelStates();
         startStaleCursorCheck();
@@ -115,11 +116,13 @@ function setupConnectionCallbacks(): void {
       }
 
       if (phase === ConnectionPhase.DISCONNECTED) {
+        allowAppSuspension(); 
         resetConnectionStores({ clearError: true });
       }
 
       // Preserve error message so pages can display inline error
       if (phase === ConnectionPhase.ERROR) {
+        allowAppSuspension(); 
         resetConnectionStores({ clearError: false });
       }
     },
@@ -180,6 +183,18 @@ function setupConnectionCallbacks(): void {
 }
 
 // ============== Helper Functions ==============
+
+function preventAppSuspension(): void {
+  try {
+    (window as any).electron?.power?.preventAppSuspension();
+  } catch { /* preload not available in test env */ }
+}
+
+function allowAppSuspension(): void {
+  try {
+    (window as any).electron?.power?.allowAppSuspension();
+  } catch { /* preload not available in test env */ }
+}
 
 function updateMediaStates(): void {
   if (!connectionManagerInstance) return;
@@ -412,6 +427,7 @@ export async function disconnect(): Promise<void> {
   try {
     await connectionManagerInstance.disconnect();
     currentRole.set(null);
+    allowAppSuspension();
   } catch (error) {
     console.error("Disconnect error:", error);
   }
@@ -429,6 +445,7 @@ export async function resetConnection(): Promise<void> {
       setupConnectionCallbacks();
     }
   } finally {
+    allowAppSuspension();
     connectionPhase.set(ConnectionPhase.IDLE);
     currentRole.set(null);
     resetConnectionStores();
