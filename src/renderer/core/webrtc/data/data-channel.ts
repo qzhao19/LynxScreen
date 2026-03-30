@@ -9,7 +9,6 @@ import { RemoteCursorState } from "../../../../shared/types/index";
 export class DataChannelService {
   private cursorPositionsChannel: RTCDataChannel | null = null;
   private cursorPingChannel: RTCDataChannel | null = null;
-  private cursorsEnabled: boolean = false;
   private isScreenSharer: boolean = false;
 
   private onCursorUpdateCallback?: (data: RemoteCursorState) => void;
@@ -80,8 +79,6 @@ export class DataChannelService {
     if (channel.label === DataChannelName.CURSOR_POSITIONS) {
       this.cursorPositionsChannel = channel;
       channel.onmessage = (msg: MessageEvent): void => {
-        if (!this.cursorsEnabled) return;
-
         // P2P cursor flow:
         // Watcher sends cursor positions → Sharer receives and renders
         // Therefore only Sharer (isScreenSharer=true) should process incoming cursor data
@@ -100,7 +97,6 @@ export class DataChannelService {
     if (channel.label === DataChannelName.CURSOR_PING) {
       this.cursorPingChannel = channel;
       channel.onmessage = (msg: MessageEvent): void => {
-        if (!this.cursorsEnabled) return;
         // Ping is bidirectional
         this.onCursorPingCallback?.(msg.data);
       };
@@ -174,8 +170,6 @@ export class DataChannelService {
    * Sends cursor position update to the remote peer.
    */
   public updateRemoteCursor(data: RemoteCursorState): boolean {
-    if (!this.cursorsEnabled) return false;
-
     if (!this.isChannelReady(this.cursorPositionsChannel)) {
       log.warn("Cursor positions channel not ready");
       return false;
@@ -194,8 +188,6 @@ export class DataChannelService {
    * Sends cursor ping to the remote peer.
    */
   public pingRemoteCursor(cursorId: string): boolean {
-    if (!this.cursorsEnabled) return false;
-
     if (!this.isChannelReady(this.cursorPingChannel)) {
       log.warn("Cursor ping channel not ready");
       return false;
@@ -208,21 +200,6 @@ export class DataChannelService {
       log.error("Failed to send cursor ping:", error);
       return false;
     }
-  }
-
-  /**
-   * Enables or disables cursor synchronization.
-   */
-  public toggleCursors(enabled: boolean): boolean {
-    this.cursorsEnabled = enabled;
-    return enabled;
-  }
-
-  /**
-   * Checks if cursors are currently enabled.
-   */
-  public isCursorsEnabled(): boolean {
-    return this.cursorsEnabled;
   }
 
   /**
@@ -243,7 +220,7 @@ export class DataChannelService {
   /**
    * Checks if all channels are ready.
    */
-  public areAllChannelsReady(): boolean {
+  public areCursorChannelsReady(): boolean {
     return this.isCursorPositionsChannelReady() && this.isCursorPingChannelReady();
   }
 
@@ -256,7 +233,6 @@ export class DataChannelService {
     
     this.cursorPositionsChannel = null;
     this.cursorPingChannel = null;
-    this.cursorsEnabled = false;
 
     this.onCursorUpdateCallback = undefined;
     this.onCursorPingCallback = undefined;
