@@ -80,7 +80,6 @@ describe("PeerConnectionService", () => {
       }),
       setRemoteDescription: vi.fn().mockResolvedValue(undefined),
       addTrack: vi.fn().mockReturnValue({} as RTCRtpSender),
-      removeTrack: vi.fn(),
       close: vi.fn(),
       // addEventListener: vi.fn(),
       // removeEventListener: vi.fn(),
@@ -101,7 +100,8 @@ describe("PeerConnectionService", () => {
       onicecandidate: null,
       oniceconnectionstatechange: null,
       onconnectionstatechange: null,
-      onicegatheringstatechange: null
+      onicegatheringstatechange: null,
+      onnegotiationneeded: null
     } as unknown as RTCPeerConnection;
 
     // Define localDescription as a getter
@@ -123,11 +123,11 @@ describe("PeerConnectionService", () => {
     const RTCPeerConnectionMock = vi.fn(function (this: RTCPeerConnection) {
       // Copy regular properties
       const props = ["createOffer", "createAnswer", "setLocalDescription", 
-        "setRemoteDescription", "addTrack", "removeTrack", "close", 
+        "setRemoteDescription", "addTrack", "close", 
         "addEventListener", "removeEventListener", "connectionState",
         "iceConnectionState", "iceGatheringState", "ondatachannel",
         "ontrack", "onicecandidate", "oniceconnectionstatechange",
-        "onconnectionstatechange", "onicegatheringstatechange"];
+        "onconnectionstatechange", "onicegatheringstatechange", "onnegotiationneeded"];
       
       for (const prop of props) {
         (this as any)[prop] = (mockPeerConnection as any)[prop];
@@ -202,16 +202,17 @@ describe("PeerConnectionService", () => {
     it("should setup peer connection handlers after initialization", async () => {
       await service.initialize();
 
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
       expect(pc?.ondatachannel).not.toBeNull();
       expect(pc?.ontrack).not.toBeNull();
       expect(pc?.onicecandidate).not.toBeNull();
       expect(pc?.oniceconnectionstatechange).not.toBeNull();
+      expect(pc?.onnegotiationneeded).not.toBeNull();
     });
 
     it("should close existing connection before reinitializing", async () => {
       await service.initialize();
-      const firstPc = service.getPeerConnection();
+      const firstPc = (service as any).pc;
 
       await service.initialize();
 
@@ -225,7 +226,7 @@ describe("PeerConnectionService", () => {
 
       const offer = await service.createOffer();
 
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
       expect(pc?.createOffer).toHaveBeenCalled();
       expect(pc?.setLocalDescription).toHaveBeenCalled();
       expect(offer.type).toBe("offer");
@@ -242,7 +243,7 @@ describe("PeerConnectionService", () => {
 
       await service.createOffer();
 
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
       expect(pc?.setLocalDescription).toHaveBeenCalled();
     });
   });
@@ -254,7 +255,7 @@ describe("PeerConnectionService", () => {
 
       const answer = await service.createAnswer(offer);
 
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
       expect(pc?.setRemoteDescription).toHaveBeenCalled();
       expect(pc?.createAnswer).toHaveBeenCalled();
       expect(pc?.setLocalDescription).toHaveBeenCalled();
@@ -277,7 +278,7 @@ describe("PeerConnectionService", () => {
 
       await service.acceptAnswer(answer);
 
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
       expect(pc?.setRemoteDescription).toHaveBeenCalled();
     });
 
@@ -298,7 +299,7 @@ describe("PeerConnectionService", () => {
 
       const sender = service.addTrack(mockTrack, mockStream);
 
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
       expect(pc?.addTrack).toHaveBeenCalledWith(mockTrack, mockStream);
       expect(sender).toBeDefined();
     });
@@ -313,33 +314,13 @@ describe("PeerConnectionService", () => {
     });
   });
 
-  describe("removeTrack", () => {
-    it("should remove track from peer connection", async () => {
-      await service.initialize();
-      const mockSender = {} as RTCRtpSender;
-
-      service.removeTrack(mockSender);
-
-      const pc = service.getPeerConnection();
-      expect(pc?.removeTrack).toHaveBeenCalledWith(mockSender);
-    });
-
-    it("should throw error if peer connection not initialized", () => {
-      const mockSender = {} as RTCRtpSender;
-
-      expect(() => service.removeTrack(mockSender)).toThrow(
-        "Peer connection not initialized"
-      );
-    });
-  });
-
   describe("createDataChannels", () => {
     it("should create data channels via data channel service", async () => {
       await service.initialize();
 
       service.createDataChannels();
 
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
       expect(mockDataChannelService.createChannels).toHaveBeenCalledWith(pc);
     });
 
@@ -358,7 +339,7 @@ describe("PeerConnectionService", () => {
       await service.initialize();
       service.onIceConnectionStateChange(callback); // Move after initialize
 
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
       const handler = pc?.oniceconnectionstatechange as (() => void) | null;
       handler?.();
 
@@ -374,7 +355,7 @@ describe("PeerConnectionService", () => {
       await service.initialize();
       service.onRemoteStream(callback); // Move after initialize
 
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
       const mockStream = {} as MediaStream;
       const trackHandler = pc?.ontrack as ((event: RTCTrackEvent) => void) | null;
       trackHandler?.({
@@ -392,7 +373,7 @@ describe("PeerConnectionService", () => {
       await service.initialize();
       service.onRemoteStream(callback);
 
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
       const trackHandler = pc?.ontrack as ((event: RTCTrackEvent) => void) | null;
       trackHandler?.({
         track: { kind: "video" },
@@ -411,7 +392,7 @@ describe("PeerConnectionService", () => {
 
     it("should return true when connection state is connected", async () => {
       await service.initialize();
-      const pc = service.getPeerConnection() as any;
+      const pc = (service as any).pc;
       pc.connectionState = "connected";
 
       expect(service.isConnected()).toBe(true);
@@ -419,7 +400,7 @@ describe("PeerConnectionService", () => {
 
     it("should return false when connection state is not connected", async () => {
       await service.initialize();
-      const pc = service.getPeerConnection() as any;
+      const pc = (service as any).pc;
       pc.connectionState = "disconnected";
 
       expect(service.isConnected()).toBe(false);
@@ -433,7 +414,7 @@ describe("PeerConnectionService", () => {
 
     it("should return connection state when initialized", async () => {
       await service.initialize();
-      const pc = service.getPeerConnection() as any;
+      const pc = (service as any).pc;
       pc.connectionState = "connecting";
 
       expect(service.getConnectionState()).toBe("connecting");
@@ -447,29 +428,17 @@ describe("PeerConnectionService", () => {
 
     it("should return ICE connection state when initialized", async () => {
       await service.initialize();
-      const pc = service.getPeerConnection() as any;
+      const pc = (service as any).pc;
       pc.iceConnectionState = "checking";
 
       expect(service.getIceConnectionState()).toBe("checking");
     });
   });
 
-  describe("getPeerConnection", () => {
-    it("should return null when not initialized", () => {
-      expect(service.getPeerConnection()).toBeNull();
-    });
-
-    it("should return peer connection when initialized", async () => {
-      await service.initialize();
-
-      expect(service.getPeerConnection()).not.toBeNull();
-    });
-  });
-
   describe("close", () => {
     it("should close peer connection and clear handlers", async () => {
       await service.initialize();
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
 
       service.close();
 
@@ -477,7 +446,8 @@ describe("PeerConnectionService", () => {
       expect(pc?.ondatachannel).toBeNull();
       expect(pc?.ontrack).toBeNull();
       expect(pc?.onicecandidate).toBeNull();
-      expect(service.getPeerConnection()).toBeNull();
+      expect(pc?.onnegotiationneeded).toBeNull();
+      expect((service as any).pc).toBeNull();
     });
 
     it("should handle close when not initialized", () => {
@@ -488,13 +458,13 @@ describe("PeerConnectionService", () => {
   describe("cleanup", () => {
     it("should close connection and cleanup data channel service", async () => {
       await service.initialize();
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
 
       service.cleanup();
 
       expect(pc?.close).toHaveBeenCalled();
       expect(mockDataChannelService.cleanup).toHaveBeenCalled();
-      expect(service.getPeerConnection()).toBeNull();
+      expect((service as any).pc).toBeNull();
     });
 
     it("should clear callbacks on cleanup", async () => {
@@ -508,7 +478,7 @@ describe("PeerConnectionService", () => {
 
       // Reinitialize and trigger events - old callbacks should not be called
       await service.initialize();
-      const pc = service.getPeerConnection();
+      const pc = (service as any).pc;
       const handler = pc?.oniceconnectionstatechange as (() => void) | null;
       handler?.();
 
@@ -519,7 +489,7 @@ describe("PeerConnectionService", () => {
   describe("waitForIceGathering", () => {
     it("should resolve immediately if gathering is complete", async () => {
       await service.initialize();
-      const pc = service.getPeerConnection() as any;
+      const pc = (service as any).pc;
       pc.iceGatheringState = "complete";
 
       const startTime = Date.now();
@@ -535,7 +505,7 @@ describe("PeerConnectionService", () => {
       it("should handle incoming data channel", async () => {
         await service.initialize();
 
-        const pc = service.getPeerConnection();
+        const pc = (service as any).pc;
         const mockChannel = { label: "test-channel" } as RTCDataChannel;
         const handler = pc?.ondatachannel as ((event: RTCDataChannelEvent) => void) | null;
         handler?.({ channel: mockChannel } as RTCDataChannelEvent);
@@ -548,7 +518,7 @@ describe("PeerConnectionService", () => {
       it("should handle ICE candidate discovery", async () => {
         await service.initialize();
 
-        const pc = service.getPeerConnection();
+        const pc = (service as any).pc;
         const handler = pc?.onicecandidate as ((event: RTCPeerConnectionIceEvent) => void) | null;
 
         expect(() => handler?.({ candidate: {} } as RTCPeerConnectionIceEvent)).not.toThrow();
@@ -560,7 +530,7 @@ describe("PeerConnectionService", () => {
       it("should log connection state changes", async () => {
         await service.initialize();
 
-        const pc = service.getPeerConnection();
+        const pc = (service as any).pc;
         const handler = pc?.onconnectionstatechange as (() => void) | null;
         expect(() => handler?.()).not.toThrow();
       });
@@ -570,9 +540,25 @@ describe("PeerConnectionService", () => {
       it("should log ICE gathering state changes", async () => {
         await service.initialize();
 
-        const pc = service.getPeerConnection();
+        const pc = (service as any).pc;
         const handler = pc?.onicegatheringstatechange as (() => void) | null;
         expect(() => handler?.()).not.toThrow();
+      });
+    });
+
+    describe("onnegotiationneeded", () => {
+      it("should log warning when negotiation is needed", async () => {
+        const log = (await import("electron-log/renderer")).default;
+
+        await service.initialize();
+
+        const pc = (service as any).pc;
+        const handler = pc?.onnegotiationneeded as (() => void) | null;
+        handler?.();
+
+        expect(log.warn).toHaveBeenCalledWith(
+          expect.stringContaining("onnegotiationneeded")
+        );
       });
     });
   });
@@ -644,7 +630,7 @@ describe("PeerConnectionService", () => {
         service.initialize()
       ]);
 
-      expect(service.getPeerConnection()).not.toBeNull();
+      expect((service as any).pc).not.toBeNull();
     });
 
     it("should handle cleanup when already cleaned up", () => {
