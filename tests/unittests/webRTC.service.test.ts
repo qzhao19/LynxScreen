@@ -168,6 +168,15 @@ describe("WebRTCService", () => {
       mediaDevices: mockMediaDevices
     });
 
+    // Mock MediaStream constructor (used by WebRTCService for combinedRemoteStream)
+    class MockMediaStream {
+      private tracks: MediaStreamTrack[] = [];
+      getTracks() { return this.tracks; }
+      getTrackById(id: string) { return this.tracks.find(t => t.id === id) || null; }
+      addTrack(track: MediaStreamTrack) { this.tracks.push(track); }
+    }
+    vi.stubGlobal("MediaStream", MockMediaStream);
+
     // Mock document.createElement for audio element
     const mockAudioElement = {
       autoplay: false,
@@ -279,11 +288,11 @@ describe("WebRTCService", () => {
       expect(navigator.mediaDevices.getDisplayMedia).not.toHaveBeenCalled();
     });
 
-    it("should NOT create audio element when mic is disabled (default)", async () => {
+    it("should always create audio element for sharer regardless of mic setting", async () => {
       await service.initialize();
 
-      // audioElement should NOT be created when isMicrophoneEnabledOnConnect = false
-      expect(document.createElement).not.toHaveBeenCalledWith("audio");
+      // Sharer always creates audio element for remote audio playback
+      expect(document.createElement).toHaveBeenCalledWith("audio");
     });
 
     it("should create audio element when mic is enabled", async () => {
@@ -484,22 +493,9 @@ describe("WebRTCService", () => {
       });
     });
 
-    describe("toggleRemoteCursors", () => {
-      it("should toggle remote cursors", () => {
-        const result = service.toggleRemoteCursors(true);
-        expect(typeof result).toBe("boolean");
-      });
-    });
-
-    describe("isCursorsEnabled", () => {
-      it("should return cursors enabled state", () => {
-        expect(typeof service.isCursorsEnabled()).toBe("boolean");
-      });
-    });
-
-    describe("areDataChannelsReady", () => {
+    describe("areCursorChannelsReady", () => {
       it("should check if data channels are ready", () => {
-        expect(typeof service.areDataChannelsReady()).toBe("boolean");
+        expect(typeof service.areCursorChannelsReady()).toBe("boolean");
       });
     });
 
@@ -544,8 +540,8 @@ describe("WebRTCService", () => {
       });
 
       it("should return true when connected", async () => {
-        // Get the actual peer connection instance and modify it directly
-        const pc = (service as any).connectionService.getPeerConnection();
+        // Access the internal peer connection directly (getPeerConnection was removed)
+        const pc = (service as any).connectionService.pc;
         Object.defineProperty(pc, "connectionState", {
           value: "connected",
           configurable: true
@@ -651,7 +647,7 @@ describe("WebRTCService", () => {
       await watcherService.initialize();
 
       // Get the peer connection and trigger ontrack
-      const pc = (watcherService as any).connectionService.getPeerConnection();
+      const pc = (watcherService as any).connectionService.pc;
       const mockRemoteStream = createMockMediaStream("video");
 
       if (pc?.ontrack) {
@@ -661,7 +657,9 @@ describe("WebRTCService", () => {
         } as unknown as RTCTrackEvent);
       }
 
-      expect(mockVideoElement.srcObject).toBe(mockRemoteStream);
+      // Production code wraps tracks into a combinedRemoteStream
+      expect(mockVideoElement.srcObject).not.toBeNull();
+      expect((mockVideoElement.srcObject as any).getTracks().length).toBeGreaterThan(0);
     });
   });
 
