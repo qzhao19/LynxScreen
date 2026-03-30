@@ -41,9 +41,6 @@ export const cursorChannelsReady = writable<boolean>(false);
 export const lastCursorPingAt = writable<number | null>(null);
 export const remoteCursors = writable<Map<string, RemoteCursorState>>(new Map());
 
-// Cursor sync enabled state
-export const cursorSyncEnabled = writable<boolean>(false);
-
 // ICE connection state
 export const iceConnectionState = writable<RTCIceConnectionState | null>(null);
 
@@ -66,9 +63,9 @@ export const isWatcher = derived(currentRole, $role => $role === PeerRole.SCREEN
 
 // whether cursor sync can actually work now
 export const canSyncCursor = derived(
-  [isConnected, cursorChannelsReady, cursorSyncEnabled],
-  ([$isConnected, $cursorChannelsReady, $cursorSyncEnabled]) =>
-    $isConnected && $cursorChannelsReady && $cursorSyncEnabled
+  [isConnected, cursorChannelsReady],
+  ([$isConnected, $cursorChannelsReady]) =>
+    $isConnected && $cursorChannelsReady
 );
 
 // Phase display text mapping
@@ -113,10 +110,8 @@ function setupConnectionCallbacks(): void {
       if (phase === ConnectionPhase.CONNECTED) {
         updateMediaStates();
         syncCursorChannelStates();
-        syncCursorEnabledState();
         startStaleCursorCheck();
         startCursorChannelTimeout();
-        tryEnableCursorSync();
       }
 
       if (phase === ConnectionPhase.DISCONNECTED) {
@@ -171,14 +166,11 @@ function setupConnectionCallbacks(): void {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     onChannelOpen: (_channelName: string) => {
       syncCursorChannelStates();
-      syncCursorEnabledState();
-      tryEnableCursorSync();
     },
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     onChannelClose: (_channelName: string) => {
       syncCursorChannelStates();
-      syncCursorEnabledState();
 
       if (!connectionManagerInstance?.isConnected()) {
         cursorLastSeen.clear();
@@ -195,14 +187,6 @@ function updateMediaStates(): void {
   isMicrophoneEnabled.set(connectionManagerInstance.isMicrophoneActive());
   isDisplayEnabled.set(connectionManagerInstance.isDisplayActive());
   hasAudioInput.set(connectionManagerInstance.hasAudioInput());
-}
-
-function syncCursorEnabledState(): void {
-  if (!connectionManagerInstance) {
-    cursorSyncEnabled.set(false);
-    return;
-  }
-  cursorSyncEnabled.set(connectionManagerInstance.isCursorsEnabled());
 }
 
 function syncCursorChannelStates(): void {
@@ -296,7 +280,6 @@ function resetConnectionStores(options: { clearError?: boolean } = {}): void {
   cursorPositionsChannelReady.set(false);
   cursorPingChannelReady.set(false);
   cursorChannelsReady.set(false);
-  cursorSyncEnabled.set(false);
   lastCursorPingAt.set(null);
   remoteCursors.set(new Map());
   isMicrophoneEnabled.set(false);
@@ -495,27 +478,3 @@ export function updateRemoteCursor(cursorData: RemoteCursorState): boolean {
   return connectionManagerInstance.updateRemoteCursor(cursorData);
 }
 
-export function removeRemoteCursor(cursorId: string): void {
-  remoteCursors.update(cursors => {
-    const newCursors = new Map(cursors);
-    newCursors.delete(cursorId);
-    return newCursors;
-  });
-}
-
-export function toggleRemoteCursors(enabled: boolean): boolean {
-  if (!connectionManagerInstance) return false;
-  const ok = connectionManagerInstance.toggleRemoteCursors(enabled);
-  syncCursorEnabledState();
-  return ok;
-}
-
-function tryEnableCursorSync(): void {
-  if (!connectionManagerInstance) return;
-  if (!connectionManagerInstance.isConnected()) return;
-  if (!connectionManagerInstance.areCursorChannelsReady()) return;
-  if (connectionManagerInstance.isCursorsEnabled()) return;
-
-  connectionManagerInstance.toggleRemoteCursors(true);
-  syncCursorEnabledState();
-}
