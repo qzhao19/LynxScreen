@@ -12,6 +12,8 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      // Prevent macOS from throttling WebRTC frame in the background
+      backgroundThrottling: false,
       preload: path.join(__dirname, "preload.js")
     }
   });
