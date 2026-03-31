@@ -28,6 +28,7 @@
   let videoContainerHeight = 0;
   let hasJoined = false;
   let sessionUrl = "";
+  let isManualDisconnect = false;
 
   async function handleJoinSession() {
     const username = $appSettings.username || "Anonymous";
@@ -61,12 +62,16 @@
   }
 
   async function handleDisconnect() {
+    isManualDisconnect = true;
     try {
       await disconnect();
       hasJoined = false;
       showToast("Disconnected", "info");
+      navigateTo("home");
     } catch (error) {
       console.error("Disconnect error:", error);
+    } finally {
+      isManualDisconnect = false;
     }
   }
 
@@ -111,6 +116,15 @@
   $: showAnswerUrl = hasJoined && !!$generatedUrl && !$isConnected;
   $: showVideo = hasJoined;
   $: showError = $errorMessage && phase === ConnectionPhase.ERROR;
+
+  // Remote peer ended the session: clear local page state and return user to home.
+  $: if (hasJoined && phase === ConnectionPhase.DISCONNECTED) {
+    hasJoined = false;
+    if (!isManualDisconnect) {
+      showToast("Session ended by sharer", "info");
+      navigateTo("home");
+    }
+  }
 </script>
 
 <PageContainer maxWidth={$isConnected ? "900px" : "500px"}>
