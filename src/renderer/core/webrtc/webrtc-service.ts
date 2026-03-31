@@ -170,7 +170,39 @@ export class WebRTCService {
     }
   }
 
+  /**
+   * Checks and requests macOS microphone permission via Electron IPC.
+   */
+  private async ensureMicrophonePermission(): Promise<boolean> {
+    try {
+      const api = (window as any).electron?.mediaPermission;
+      if (!api) return true; // preload not available
+
+      const status: string = await api.getMicrophoneStatus();
+      if (status === "granted") return true;
+      if (status === "denied" || status === "restricted") {
+        log.warn(`[WebRTCService] Microphone permission ${status} at OS level`);
+        return false;
+      }
+
+      // status is "not-determined" — trigger the macOS permission dialog
+      const granted: boolean = await api.requestMicrophoneAccess();
+      if (!granted) {
+        log.warn("[WebRTCService] User denied microphone permission");
+      }
+      return granted;
+    } catch (error) {
+      log.warn("[WebRTCService] Failed to check microphone permission:", error);
+      return true; // fall through to let getUserMedia handle it
+    }
+  }
+
   private async acquireAndAddAudioTrack(): Promise<boolean> {
+    // Ensure macOS microphone permission before calling getUserMedia
+    // When isMicrophoneEnabledOnConnect = false, user need to toggle mic
+    const permitted = await this.ensureMicrophonePermission();
+    if (!permitted) return false;
+
     // Must actively request user audio here.
     const audioStream = await this.mediaService.getUserAudio();
     if (!audioStream) {
@@ -211,10 +243,13 @@ export class WebRTCService {
       // Optional: get audio stream
       // Only request microphone permission when user explicitly enables it.
       if (this.config.userConfig.isMicrophoneEnabledOnConnect) {
-        await this.mediaService.getUserAudio();
+        const permitted = await this.ensureMicrophonePermission();
+        if (permitted) {
+          await this.mediaService.getUserAudio();
+        }
       }
       
-      if (this.isScreenSharer()) {
+      if (this.isSharerConfig(this.config)) {
         // Sharer: capture screen — will throw if user denies
         await this.setupSharerMediaTracks();
       } else {
@@ -286,7 +321,6 @@ export class WebRTCService {
       if (!enabled) {
         return;
       }
-
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const success = await this.acquireAndAddAudioTrack();
       return;
@@ -296,37 +330,37 @@ export class WebRTCService {
   }
 
   public toggleDisplayStream(): boolean {
-    const currentState = this.mediaService.isDisplayStreamActive();
+    const currentState = this.mediaService.isDisplayTrackActive();
     this.mediaService.toggleVideoTrack(!currentState);
-    return this.mediaService.isDisplayStreamActive();
+    return this.mediaService.isDisplayTrackActive();
   }
 
   public setDisplayStreamEnabled(enabled: boolean): void {
     this.mediaService.toggleVideoTrack(enabled);
   }
 
-  public isMicrophoneActive(): boolean {
+  public isMicrophoneEnabled(): boolean {
     return this.mediaService.isAudioTrackActive();
-  }
-
-  public getDisplayStream(): MediaStream | null {
-    return this.mediaService.getDisplayStream();
   }
 
   public hasAudioInput(): boolean {
     return this.mediaService.hasAudioInput();
   }
 
+  public getDisplayStream(): MediaStream | null {
+    return this.mediaService.getDisplayStream();
+  }
+
   public getAudioStream(): MediaStream | null {
     return this.mediaService.getAudioStream();
   }
 
-  public isDisplayStreamActive(): boolean {
-    return this.mediaService.isDisplayStreamActive();
+  public isDisplayTrackEnabled(): boolean {
+    return this.mediaService.isDisplayTrackActive();
   }
 
-  public isDisplayActive(): boolean {
-    return this.mediaService.isDisplayActive();
+  public isDisplayCaptureAlive(): boolean {
+    return this.mediaService.isDisplayCaptureAlive();
   }
 
   // ============== Cursor Control ==============
@@ -389,14 +423,6 @@ export class WebRTCService {
     return this.connectionService.isConnected();
   }
 
-  public getConnectionState(): RTCPeerConnectionState | null {
-    return this.connectionService.getConnectionState();
-  }
-
-  public getIceConnectionState(): RTCIceConnectionState | null {
-    return this.connectionService.getIceConnectionState();
-  }
-
   // ============== Disconnect ==============
 
   /**
@@ -418,17 +444,5 @@ export class WebRTCService {
     this.isInitialized = false;
 
     log.info("WebRTC service disconnected");
-  }
-
-  public isServiceInitialized(): boolean {
-    return this.isInitialized;
-  }
-
-  public isScreenSharer(): boolean {
-    return this.config.isScreenSharer;
-  }
-
-  public isScreenWatcher(): boolean {
-    return !this.config.isScreenSharer;
   }
 }
