@@ -199,8 +199,8 @@ function allowAppSuspension(): void {
 function updateMediaStates(): void {
   if (!connectionManagerInstance) return;
 
-  isMicrophoneEnabled.set(connectionManagerInstance.isMicrophoneActive());
-  isDisplayEnabled.set(connectionManagerInstance.isDisplayActive());
+  isMicrophoneEnabled.set(connectionManagerInstance.isMicrophoneEnabled());
+  isDisplayEnabled.set(connectionManagerInstance.isDisplayTrackEnabled());
   hasAudioInput.set(connectionManagerInstance.hasAudioInput());
 }
 
@@ -460,27 +460,27 @@ export async function toggleMicrophone(): Promise<boolean> {
   if (!connectionManagerInstance) return false;
   
   const result = await connectionManagerInstance.toggleMicrophone();
-  isMicrophoneEnabled.set(connectionManagerInstance.isMicrophoneActive());
+  isMicrophoneEnabled.set(connectionManagerInstance.isMicrophoneEnabled());
   return result;
 }
 
 export async function setMicrophoneEnabled(enabled: boolean): Promise<void> {
   if (!connectionManagerInstance) return;
   await connectionManagerInstance.setMicrophoneEnabled(enabled);
-  isMicrophoneEnabled.set(connectionManagerInstance.isMicrophoneActive());
+  isMicrophoneEnabled.set(connectionManagerInstance.isMicrophoneEnabled());
 }
 
 export function toggleDisplayStream(): boolean {
   if (!connectionManagerInstance) return false;
   const result = connectionManagerInstance.toggleDisplayStream();
-  isDisplayEnabled.set(connectionManagerInstance.isDisplayActive());
+  isDisplayEnabled.set(connectionManagerInstance.isDisplayTrackEnabled());
   return result;
 }
 
 export function setDisplayStreamEnabled(enabled: boolean): void {
   if (!connectionManagerInstance) return;
   connectionManagerInstance.setDisplayStreamEnabled(enabled);
-  isDisplayEnabled.set(connectionManagerInstance.isDisplayActive());
+  isDisplayEnabled.set(connectionManagerInstance.isDisplayTrackEnabled());
 }
 
 // ============== Cursor Control Actions ==============
