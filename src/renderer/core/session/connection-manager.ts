@@ -427,8 +427,8 @@ export class ConnectionManager {
   /**
    * Checks if microphone is active
    */
-  public isMicrophoneActive(): boolean {
-    return this.webrtcService?.isMicrophoneActive() ?? false;
+  public isMicrophoneEnabled(): boolean {
+    return this.webrtcService?.isMicrophoneEnabled() ?? false;
   }
 
   /**
@@ -453,78 +453,20 @@ export class ConnectionManager {
   }
 
   /**
-   * Checks if display stream is active (tracks enabled)
+   * Checks if video track is enabled (user toggle state)
    */
-  public isDisplayStreamActive(): boolean {
-    return this.webrtcService?.isDisplayStreamActive() ?? false;
+  public isDisplayTrackEnabled(): boolean {
+    return this.webrtcService?.isDisplayTrackEnabled() ?? false;
   }
 
   /**
-   * Checks if display is actively capturing
+   * Checks if OS-level display capture is alive
    */
-  public isDisplayActive(): boolean {
-    return this.webrtcService?.isDisplayActive() ?? false;
-  }
-
-  // ============== CONNECTION STATE ==============
-
-  /**
-   * Gets the current peer connection state
-   */
-  public getConnectionState(): RTCPeerConnectionState | null {
-    return this.webrtcService?.getConnectionState() ?? null;
-  }
-
-  /**
-   * Gets the current ICE connection state
-   */
-  public getIceConnectionState(): RTCIceConnectionState | null {
-    return this.webrtcService?.getIceConnectionState() ?? null;
-  }
-
-  /**
-   * Checks if WebRTC service is initialized
-   */
-  public isServiceInitialized(): boolean {
-    return this.webrtcService?.isServiceInitialized() ?? false;
-  }
-
-  /**
-   * Checks if current role is screen sharer
-   */
-  public isScreenSharer(): boolean {
-    return this.webrtcService?.isScreenSharer() ?? false;
-  }
-
-  /**
-   * Checks if current role is screen watcher
-   */
-  public isScreenWatcher(): boolean {
-    return this.webrtcService?.isScreenWatcher() ?? false;
+  public isDisplayCaptureAlive(): boolean {
+    return this.webrtcService?.isDisplayCaptureAlive() ?? false;
   }
 
   // ============== COMMON METHODS ==============
-
-  /**
-   * Gets the current connection phase
-   */
-  public getCurrentPhase(): ConnectionPhase {
-    return this.currentPhase;
-  }
-
-  /**
-   * Gets the current role
-   */
-  public getRole(): PeerRole | null {
-    return this.role;
-  }
-
-  /**
-   * Gets the WebRTC service (for advanced usage)
-   */
-  public getWebRTCService(): WebRTCService | null {
-    return this.webrtcService;
-  }
 
   /**
    * Checks if connected
