@@ -185,17 +185,6 @@ export class MediaStreamService {
   }
 
   /**
-   * Checks if display sharing is currently active.
-   */
-  public isDisplayActive(): boolean {
-    return !!(
-      this.displayStream &&
-      this.displayStream.active &&
-      this.displayStream.getTracks().some(track => track.enabled && track.readyState === "live")
-    );
-  }
-
-  /**
    * Enables or disables all live audio tracks.
    */
   public toggleAudioTrack(enabled: boolean): void {
@@ -230,14 +219,28 @@ export class MediaStreamService {
   }
 
   /**
-   * Returns true if at least one live video track is enabled.
+   * Returns true if the user has enabled video transmission.
+   * Checks whether at least one live video track has `enabled === true`.
    */
-  public isDisplayStreamActive(): boolean {
+  public isDisplayTrackActive(): boolean {
     if (!this.displayStream) return false;
-    return this.displayStream.getVideoTracks().some(
-      track => track.readyState === "live" && track.enabled
+    return this.displayStream.getVideoTracks()  // Only check video track
+      .some(track => track.readyState === "live" && track.enabled);
+  }
+
+  /**
+   * Checks if the OS-level display capture is alive.
+   * Returns true when the underlying stream is active and has at least one live, enabled track.
+   */
+  public isDisplayCaptureAlive(): boolean {
+    return !!(
+      this.displayStream &&
+      this.displayStream.active &&
+      this.displayStream.getTracks()
+        .some(track => track.enabled && track.readyState === "live")
     );
   }
+
 
   /**
    * Stops all media tracks and clears the streams.
