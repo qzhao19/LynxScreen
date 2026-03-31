@@ -72,8 +72,22 @@ export class DataChannelService {
       this.onChannelCloseCallback?.(channel.label);
     };
 
-    channel.onerror = (error) => {
-      log.error(`Data channel error (${channel.label}):`, error);
+    channel.onerror = (event) => {
+      const rtcError = (event as RTCErrorEvent).error;
+      const errorMessage = rtcError?.message ?? "";
+      const isExpectedCloseAbort =
+        rtcError?.errorDetail === "sctp-failure" ||
+        errorMessage.includes("User-Initiated Abort") ||
+        errorMessage.includes("Close called") ||
+        channel.readyState === "closing" ||
+        channel.readyState === "closed";
+
+      if (isExpectedCloseAbort) {
+        log.info(`Data channel closed during shutdown (${channel.label})`);
+        return;
+      }
+
+      log.error(`Data channel error (${channel.label}):`, event);
     };
 
     if (channel.label === DataChannelName.CURSOR_POSITIONS) {
