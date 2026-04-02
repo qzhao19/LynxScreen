@@ -5,13 +5,13 @@ import {
   decodeConnectionUrl, 
   isValidConnectionUrl,
   getRoleFromUrl
-} from "../../../shared/utils/index";
+} from "../../shared/utils/index";
 import { 
   PeerRole, 
   ConnectionPhase,
   ConnectionManagerCallbacks,
   RemoteCursorState
-} from "../../../shared/types/index";
+} from "../../shared/types/index";
 import { WebRTCServiceConfig } from "../../shared/types/index";
 
 /**
@@ -403,7 +403,7 @@ export class ConnectionManager {
    * Sets microphone enabled state
    */
   public async setMicrophoneEnabled(enabled: boolean): Promise<void> {
-    this.webrtcService?.setMicrophoneEnabled(enabled);
+    await this.webrtcService?.setMicrophoneEnabled(enabled);
   }
 
   /**
