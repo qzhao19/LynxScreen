@@ -4,9 +4,9 @@ import {
   decodeConnectionUrl,
   isValidConnectionUrl,
   getRoleFromUrl,
-} from "../../src/shared/utils/index";
-import { PeerRole } from "../../src/shared/types/index";
-import { URL_PROTOCOL } from "../../src/shared/constants/index";
+} from "../../src/renderer/shared/utils/index";
+import { PeerRole } from "../../src/renderer/shared/types/index";
+import { URL_PROTOCOL } from "../../src/renderer/shared/constants/index";
 
 // Mock electron-log
 vi.mock("electron-log/renderer", () => ({
