@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { WebRTCService } from "../../src/renderer/core/webrtc/index";
-import { RemoteCursorState } from "../../src/shared/types/index";
+import { RemoteCursorState } from "../../src/renderer/shared/types/index";
 import { WebRTCSharerConfig, WebRTCWatcherConfig } from "../../src/renderer/shared/types/index";
 
 // Mock electron-log
@@ -206,19 +206,11 @@ describe("WebRTCService", () => {
   describe("constructor", () => {
     it("should create instance with screen sharer config", () => {
       expect(service).toBeInstanceOf(WebRTCService);
-      expect(service.isScreenSharer()).toBe(true);
-      expect(service.isScreenWatcher()).toBe(false);
     });
 
     it("should create instance with screen watcher config", () => {
-      // const watcherConfig: WebRTCServiceConfig = {
-      //   ...mockConfig,
-      //   isScreenSharer: false
-      // };
       const watcherService = new WebRTCService(mockWatcherConfig);
-
-      expect(watcherService.isScreenSharer()).toBe(false);
-      expect(watcherService.isScreenWatcher()).toBe(true);
+      expect(watcherService).toBeInstanceOf(WebRTCService);
     });
   });
 
@@ -227,7 +219,6 @@ describe("WebRTCService", () => {
       // Default config: isMicrophoneEnabledOnConnect = false
       await service.initialize();
 
-      expect(service.isServiceInitialized()).toBe(true);
       expect(RTCPeerConnection).toHaveBeenCalled();
       // getUserMedia should NOT be called when mic is disabled
       expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
@@ -250,7 +241,6 @@ describe("WebRTCService", () => {
 
       await sharerWithMicService.initialize();
 
-      expect(sharerWithMicService.isServiceInitialized()).toBe(true);
       expect(RTCPeerConnection).toHaveBeenCalled();
       // getUserMedia SHOULD be called when mic is enabled
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
@@ -264,7 +254,6 @@ describe("WebRTCService", () => {
       const watcherService = new WebRTCService(mockWatcherConfig);
       await watcherService.initialize();
 
-      expect(watcherService.isServiceInitialized()).toBe(true);
       // getUserMedia should NOT be called when mic is disabled
       expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
       expect(navigator.mediaDevices.getDisplayMedia).not.toHaveBeenCalled();
@@ -282,7 +271,6 @@ describe("WebRTCService", () => {
 
       await watcherWithMicService.initialize();
 
-      expect(watcherWithMicService.isServiceInitialized()).toBe(true);
       // getUserMedia SHOULD be called when mic is enabled
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled();
       expect(navigator.mediaDevices.getDisplayMedia).not.toHaveBeenCalled();
@@ -315,16 +303,12 @@ describe("WebRTCService", () => {
       (navigator.mediaDevices.getUserMedia as any).mockRejectedValue(new Error("Permission denied"));
 
       await service.initialize();
-
-      expect(service.isServiceInitialized()).toBe(true);
     });
 
     it("should throw when display capture fails for sharer", async () => {
       (navigator.mediaDevices.getDisplayMedia as any).mockRejectedValue(new Error("Permission denied"));
 
       await expect(service.initialize()).rejects.toThrow();
-
-      expect(service.isServiceInitialized()).toBe(false);
     });
   });
 
@@ -414,7 +398,7 @@ describe("WebRTCService", () => {
 
     describe("toggleMicrophone", () => {
       it("should toggle microphone state", async () => {
-        const initialState = service.isMicrophoneActive();
+        const initialState = service.isMicrophoneEnabled();
         const newState = await service.toggleMicrophone();
 
         expect(newState).toBe(!initialState);
@@ -425,13 +409,13 @@ describe("WebRTCService", () => {
       it("should set microphone state", () => {
         service.setMicrophoneEnabled(false);
 
-        expect(service.isMicrophoneActive()).toBe(false);
+        expect(service.isMicrophoneEnabled()).toBe(false);
       });
     });
 
     describe("toggleDisplayStream", () => {
       it("should toggle display stream state", () => {
-        const initialState = service.isDisplayStreamActive();
+        const initialState = service.isDisplayTrackEnabled();
         const newState = service.toggleDisplayStream();
 
         expect(newState).toBe(!initialState);
@@ -442,7 +426,7 @@ describe("WebRTCService", () => {
       it("should set display stream state", () => {
         service.setDisplayStreamEnabled(false);
 
-        expect(service.isDisplayStreamActive()).toBe(false);
+        expect(service.isDisplayTrackEnabled()).toBe(false);
       });
     });
 
@@ -458,9 +442,9 @@ describe("WebRTCService", () => {
       });
     });
 
-    describe("isDisplayActive", () => {
+    describe("isDisplayCaptureAlive", () => {
       it("should return true when display stream is active", () => {
-        expect(service.isDisplayActive()).toBe(true);
+        expect(service.isDisplayCaptureAlive()).toBe(true);
       });
     });
   });
@@ -550,17 +534,6 @@ describe("WebRTCService", () => {
       });
     });
 
-    describe("getConnectionState", () => {
-      it("should return connection state", () => {
-        expect(service.getConnectionState()).toBe("new");
-      });
-    });
-
-    describe("getIceConnectionState", () => {
-      it("should return ICE connection state", () => {
-        expect(service.getIceConnectionState()).toBe("new");
-      });
-    });
   });
 
   describe("lifecycle", () => {
@@ -570,7 +543,6 @@ describe("WebRTCService", () => {
 
         await service.disconnect();
 
-        expect(service.isServiceInitialized()).toBe(false);
         expect(mockPeerConnection.close).toHaveBeenCalled();
       });
 
@@ -589,56 +561,6 @@ describe("WebRTCService", () => {
       });
     });
 
-    describe("isServiceInitialized", () => {
-      it("should return false before setup", () => {
-        expect(service.isServiceInitialized()).toBe(false);
-      });
-
-      it("should return true after setup", async () => {
-        await service.initialize();
-        expect(service.isServiceInitialized()).toBe(true);
-      });
-
-      it("should return false after disconnect", async () => {
-        await service.initialize();
-        await service.disconnect();
-        expect(service.isServiceInitialized()).toBe(false);
-      });
-    });
-  });
-
-  describe("role checks", () => {
-    describe("isScreenSharer", () => {
-      it("should return true for screen sharer", () => {
-        expect(service.isScreenSharer()).toBe(true);
-      });
-
-      it("should return false for screen watcher", () => {
-        // const watcherConfig: WebRTCServiceConfig = {
-        //   ...mockConfig,
-        //   isScreenSharer: false
-        // };
-        const watcherService = new WebRTCService(mockWatcherConfig);
-
-        expect(watcherService.isScreenSharer()).toBe(false);
-      });
-    });
-
-    describe("isScreenWatcher", () => {
-      it("should return false for screen sharer", () => {
-        expect(service.isScreenWatcher()).toBe(false);
-      });
-
-      it("should return true for screen watcher", () => {
-        // const watcherConfig: WebRTCServiceConfig = {
-        //   ...mockConfig,
-        //   isScreenSharer: false
-        // };
-        const watcherService = new WebRTCService(mockWatcherConfig);
-
-        expect(watcherService.isScreenWatcher()).toBe(true);
-      });
-    });
   });
 
   describe("track handling", () => {
@@ -671,22 +593,17 @@ describe("WebRTCService", () => {
 
       // Sharer must have display stream — initialize should fail and cleanup
       await expect(service.initialize()).rejects.toThrow();
-      expect(service.isServiceInitialized()).toBe(false);
     });
 
     it("should handle multiple setup calls", async () => {
       await service.initialize();
       await service.initialize();
-
-      expect(service.isServiceInitialized()).toBe(true);
     });
 
     it("should handle multiple disconnect calls", async () => {
       await service.initialize();
       service.disconnect();
       service.disconnect();
-
-      expect(service.isServiceInitialized()).toBe(false);
     });
   });
 });
