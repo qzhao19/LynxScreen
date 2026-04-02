@@ -1,6 +1,6 @@
 import log from "electron-log/renderer";
 import { DataChannelName } from "../../../shared/types/index";
-import { RemoteCursorState } from "../../../../shared/types/index";
+import { RemoteCursorState } from "../../../shared/types/index";
 
 /**
  * Service for managing WebRTC data channels used for cursor synchronization.
