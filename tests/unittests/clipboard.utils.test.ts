@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { copyToClipboard, readFromClipboard } from "../../src/shared/utils/clipboard";
+import { copyToClipboard, readFromClipboard } from "../../src/renderer/shared/utils/clipboard";
 import log from "electron-log/renderer";
 
 // Mock electron-log
