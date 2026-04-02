@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { DataChannelService } from "../../src/renderer/core/webrtc/data/index";
 import { PeerConnectionService } from "../../src/renderer/core/webrtc/connection/index";
-import { WebRTCConnectionConfig } from "../../src/shared/types/index";
+import { WebRTCConnectionConfig } from "../../src/renderer/shared/types/index";
 
 // Mock electron-log
 vi.mock("electron-log/renderer", () => ({
