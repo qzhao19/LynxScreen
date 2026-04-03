@@ -21,7 +21,7 @@
     disconnect,
     resetConnection
   } from "../stores/connection";
-  import { ConnectionPhase } from "../../../shared/types/index";
+  import { ConnectionPhase } from "../../shared/types/index";
 
   let isAccepting = false;
   let answerUrl = "";
