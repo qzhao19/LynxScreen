@@ -21,7 +21,7 @@
     errorMessage,
     cursorChannelsReady
   } from "../stores/connection";
-  import { ConnectionPhase } from "../../../shared/types/index";
+  import { ConnectionPhase } from "../../shared/types/index";
 
   let videoElement: HTMLVideoElement;
   let videoContainerWidth = 0;
