@@ -13,7 +13,7 @@
     isLoading, 
     errorMessage 
   } from "../stores/connection";
-  import { ConnectionPhase } from "../../../shared/types/index";
+  import { ConnectionPhase } from "../../shared/types/index";
 
   let isStarting = false;
 
