@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade } from "svelte/transition";
   import { remoteCursors } from "../../stores/index";
-  import type { RemoteCursorState } from "../../../../shared/types/index";
+  import type { RemoteCursorState } from "../../../shared/types/index";
 
   // Props
   export let containerWidth = 0;
