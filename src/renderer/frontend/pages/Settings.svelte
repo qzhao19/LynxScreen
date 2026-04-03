@@ -3,8 +3,8 @@
   import { PageContainer, BackButton } from "../components/layout";
   import { Card } from "../components/ui";
   import { appSettings, saveSettings, resetSettings, showToast } from "../stores/app";
-  import type { IceServerConfig, AppSettings } from "../../../shared/types/index";
-  import { DEFAULT_APP_SETTINGS } from "../../../shared/constants/index";
+  import type { IceServerConfig, AppSettings } from "../../shared/types/index";
+  import { DEFAULT_APP_SETTINGS } from "../../shared/constants/index";
   
   // Extend IceServerConfig with a stable local ID for keyed #each rendering
   type IceServerEntry = IceServerConfig & { _id: string };
