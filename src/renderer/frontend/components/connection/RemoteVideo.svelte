@@ -10,7 +10,7 @@
     appSettings,
     phaseDisplayText
   } from "../../stores/index";
-  import { ConnectionPhase } from "../../../../shared/types/index";
+  import { ConnectionPhase } from "../../../shared/types/index";
 
   // Props
   export let showOverlay = true;
