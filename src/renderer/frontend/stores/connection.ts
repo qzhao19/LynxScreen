@@ -4,7 +4,7 @@ import {
   ConnectionPhase,
   PeerRole,
   RemoteCursorState
-} from "../../../shared/types/index";
+} from "../../shared/types/index";
 import { WebRTCServiceConfig } from "../../shared/types/index";
 import { showToast, appSettings } from "./app";
 
