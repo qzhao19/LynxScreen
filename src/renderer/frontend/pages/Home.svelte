@@ -4,7 +4,7 @@
   import { ConnectionStatus } from "../components/connection";
   import { navigateTo } from "../stores/app";
   import { isConnected, connectionPhase, isSharer } from "../stores/connection";
-  import { ConnectionPhase } from "../../../shared/types/index";
+  import { ConnectionPhase } from "../../shared/types/index";
 
   const options = [
     {
