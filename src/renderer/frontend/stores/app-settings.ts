@@ -3,7 +3,7 @@ import type {
   PageType, 
   SessionState, 
   ToastMessage, 
-} from "../../shared/types/app";
+} from "../../shared/types/app-settings";
 import type { AppSettings } from "../../shared/types/index";
 import { DEFAULT_APP_SETTINGS } from "../../shared/constants/index";
 
