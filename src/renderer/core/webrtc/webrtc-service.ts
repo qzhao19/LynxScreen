@@ -1,6 +1,6 @@
 import log from "electron-log/renderer";
-import { RemoteCursorState } from "../../shared/types/index";
 import {
+  RemoteCursorState,
   WebRTCSharerConfig,
   WebRTCWatcherConfig,
   WebRTCServiceConfig
