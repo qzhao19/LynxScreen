@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { DataChannelService } from "../../src/renderer/core/webrtc/data/index";
-import { RemoteCursorState } from "../../src/renderer/shared/types/index";
-import { DataChannelName } from "../../src/renderer/shared/types/index";
+import { 
+  DataChannelName, 
+  RemoteCursorState 
+} from "../../src/renderer/shared/types/index";
 
 // Mock electron-log
 vi.mock("electron-log/renderer", () => ({
