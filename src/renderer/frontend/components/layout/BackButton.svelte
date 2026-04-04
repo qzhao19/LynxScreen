@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { goBack } from "../../stores/app";
+  import { goBack } from "../../stores/app-settings";
 </script>
 
 <button class="back-button" on:click={goBack}>
