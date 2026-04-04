@@ -6,7 +6,7 @@ import {
   RemoteCursorState
 } from "../../shared/types/index";
 import { WebRTCServiceConfig } from "../../shared/types/index";
-import { showToast, appSettings } from "./app";
+import { showToast, appSettings } from "./app-settings";
 
 // ============== Connection Manager Singleton ==============
 
