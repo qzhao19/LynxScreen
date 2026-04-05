@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { currentPage } from "./frontend/stores/app";
+  import { currentPage } from "./frontend/stores/index";
   import { Toast, HelpButton } from "./frontend/components/feedback";
   import { Home, ScreenWatcher, ScreenSharer, ActiveSharing, Settings } from "./frontend/pages";
 </script>
