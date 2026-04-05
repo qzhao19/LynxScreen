@@ -3,16 +3,14 @@
   import { Card, IconCircle, StatusIndicator } from "../components/ui";
   import { ConnectionStatus } from "../components/connection";
   import { 
-    navigateTo, 
-    showToast, 
-    appSettings 
-  } from "../stores/app";
-  import { 
     startSharing, 
     connectionPhase, 
     isLoading, 
-    errorMessage 
-  } from "../stores/connection";
+    errorMessage,
+    navigateTo, 
+    showToast, 
+    appSettings 
+  } from "../stores/index";
   import { ConnectionPhase } from "../../shared/types/index";
 
   let isStarting = false;
