@@ -2,7 +2,7 @@
   import { onMount, tick } from "svelte";
   import { PageContainer, BackButton } from "../components/layout";
   import { Card } from "../components/ui";
-  import { appSettings, saveSettings, resetSettings, showToast } from "../stores/app";
+  import { appSettings, saveSettings, resetSettings, showToast } from "../stores/index";
   import type { IceServerConfig, AppSettings } from "../../shared/types/index";
   import { DEFAULT_APP_SETTINGS } from "../../shared/constants/index";
   
