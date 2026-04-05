@@ -2,8 +2,12 @@
   import { PageContainer } from "../components/layout";
   import { Card, IconCircle } from "../components/ui";
   import { ConnectionStatus } from "../components/connection";
-  import { navigateTo } from "../stores/app";
-  import { isConnected, connectionPhase, isSharer } from "../stores/connection";
+  import { 
+    isConnected, 
+    connectionPhase, 
+    isSharer, 
+    navigateTo 
+  } from "../stores/index";
   import { ConnectionPhase } from "../../shared/types/index";
 
   const options = [
