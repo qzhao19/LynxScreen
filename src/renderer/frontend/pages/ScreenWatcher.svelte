@@ -9,7 +9,6 @@
     RemoteVideoInteract,
     SessionTimer
   } from "../components/connection";
-  import { navigateTo, showToast, appSettings } from "../stores/app";
   import { 
     joinSession,
     disconnect,
@@ -19,8 +18,11 @@
     isConnected,
     isLoading,
     errorMessage,
-    cursorChannelsReady
-  } from "../stores/connection";
+    cursorChannelsReady,
+    navigateTo, 
+    showToast, 
+    appSettings
+  } from "../stores/index";
   import { ConnectionPhase } from "../../shared/types/index";
 
   let videoElement: HTMLVideoElement;
