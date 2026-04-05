@@ -1,5 +1,5 @@
 import log from "electron-log/renderer";
-import { PeerRole } from "../types/index";
+import { PeerRole } from "../../shared/types/index";
 import { URL_PROTOCOL } from "../constants/index";
 
 /**
@@ -206,7 +206,7 @@ export async function encodeConnectionUrl(
   // Build URL with query params
   const action = role === PeerRole.SCREEN_SHARER ? "share" : "watch";
   const url = new URL(`${URL_PROTOCOL}${action}`);
-  url.searchParams.set("username", encodeURIComponent(username));
+  url.searchParams.set("username", username);
   url.searchParams.set("token", compressedSdp);
   url.searchParams.set("type", sdp.type);
 
@@ -276,7 +276,7 @@ export async function decodeConnectionUrl(url: string): Promise<{
     };
 
     log.info(`[SignalingURL] Successfully decoded URL for ${role} (${username})`);
-    return { role, username: decodeURIComponent(username), sdp };
+    return { role, username, sdp };
 
   } catch (error) {
     log.error("[SignalingURL] Failed to decode URL:", error);
