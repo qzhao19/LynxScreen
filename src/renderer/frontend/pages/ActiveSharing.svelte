@@ -7,10 +7,6 @@
     MediaControls, 
     SessionTimer 
   } from "../components/connection";
-  import { 
-    navigateTo, 
-    showToast 
-  } from "../stores/app";
   import {
     connectionPhase,
     generatedUrl,
@@ -19,8 +15,10 @@
     errorMessage,
     acceptAnswer,
     disconnect,
-    resetConnection
-  } from "../stores/connection";
+    resetConnection,
+    navigateTo, 
+    showToast
+  } from "../stores/index";
   import { ConnectionPhase } from "../../shared/types/index";
 
   let isAccepting = false;
